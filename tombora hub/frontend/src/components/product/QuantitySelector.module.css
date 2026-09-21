@@ -1,0 +1,11 @@
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.value {
+  min-width: 2rem;
+  text-align: center;
+  font-weight: 600;
+}

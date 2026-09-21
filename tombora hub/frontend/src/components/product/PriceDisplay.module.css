@@ -1,0 +1,28 @@
+.wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: baseline;
+}
+
+.sm strong {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.lg strong {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.old {
+  color: var(--color-ink-muted);
+  text-decoration: line-through;
+  font-size: 0.85em;
+}
+
+.off {
+  color: var(--color-brand);
+  font-size: 0.8em;
+  font-weight: 700;
+}

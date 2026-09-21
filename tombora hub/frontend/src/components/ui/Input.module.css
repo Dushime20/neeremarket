@@ -1,0 +1,27 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.field input {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 0.7rem 0.85rem;
+  background: #fff;
+  font-weight: 400;
+}
+
+.field input:focus {
+  outline: 2px solid rgba(232, 93, 4, 0.35);
+  border-color: var(--color-brand);
+}
+
+.error {
+  color: var(--color-danger);
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 500;
+}

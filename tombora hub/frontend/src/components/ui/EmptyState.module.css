@@ -1,0 +1,28 @@
+.wrap {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: var(--color-ink-muted);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.wrap h2 {
+  color: var(--color-ink);
+  font-size: 1.25rem;
+}
+
+.wrap p {
+  margin-bottom: 1rem;
+}
+
+.compact {
+  padding: 1.25rem 0.5rem;
+  border: 0;
+  background: transparent;
+}
+
+.compact h2 {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+}

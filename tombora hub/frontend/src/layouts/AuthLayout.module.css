@@ -1,0 +1,125 @@
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f5f7fa;
+  color: #222;
+}
+
+.header {
+  background: #fff;
+  border-bottom: 1px solid #e6ebf0;
+}
+
+.headerInner {
+  width: min(100% - 2rem, 1280px);
+  margin-inline: auto;
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+}
+
+.logo img {
+  height: 42px;
+  width: auto;
+  max-width: min(218px, 58vw);
+  object-fit: contain;
+}
+
+.help {
+  color: #888;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.help:hover {
+  color: var(--color-brand);
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem 1rem 2.5rem;
+}
+
+.box {
+  width: min(100%, 1280px);
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  gap: 0;
+}
+
+.promo {
+  position: relative;
+  width: 400px;
+  min-height: 538px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.promo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.promoCopy {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 20px 20px 48px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.05) 32%, rgba(0, 0, 0, 0.72) 100%);
+  color: #fff;
+}
+
+.promoTitle {
+  font-family: var(--font-sans);
+  font-size: 24px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin: 0 0 10px;
+}
+
+.promoDesc {
+  font-size: 16px;
+  line-height: 1.5;
+  margin: 0;
+  font-weight: 500;
+}
+
+.card {
+  width: 400px;
+  min-height: 538px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-radius: 20px;
+  margin: 10px 0;
+  padding: 10px;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 900px) {
+  .promo {
+    display: none;
+  }
+
+  .card {
+    width: min(100%, 400px);
+  }
+}

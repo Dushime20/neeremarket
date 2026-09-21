@@ -1,0 +1,86 @@
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.groupHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.45rem;
+}
+
+.groupLabel {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.groupLabel span {
+  font-weight: 600;
+  color: #526274;
+}
+
+.wrap,
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.pill {
+  border: 1px solid #d9e1e8;
+  background: #fff;
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
+}
+
+.pill:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.swatch {
+  width: 2.55rem;
+  height: 2.55rem;
+  border: 2px solid #d9e1e8;
+  border-radius: 8px;
+  background: #f4f7fa;
+  cursor: pointer;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+.swatch:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.swatchText {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-brand);
+}
+
+.active {
+  border-color: #1a1a1a;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #1a1a1a;
+}
+
+.pill.active {
+  border-color: #1a1a1a;
+  background: #fff;
+}

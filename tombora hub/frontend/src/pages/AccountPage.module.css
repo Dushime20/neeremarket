@@ -1,0 +1,266 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  padding-bottom: 2rem;
+}
+
+.hero {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 1.15rem 1.25rem;
+  box-shadow: 0 1px 2px rgba(26, 35, 50, 0.04);
+}
+
+.avatar {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--color-brand-soft);
+  color: var(--color-brand);
+  font-size: 1rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.heroCopy {
+  min-width: 0;
+  flex: 1;
+}
+
+.kicker {
+  margin: 0 0 0.15rem;
+  font-size: 12px;
+  color: var(--color-ink-muted);
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.meta {
+  margin: 0.2rem 0 0;
+  color: var(--color-ink-muted);
+  font-size: 13px;
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.stats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.stats li {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+}
+
+.stats strong {
+  display: block;
+  font-size: 1.35rem;
+  line-height: 1.1;
+  color: var(--color-ink);
+}
+
+.stats span {
+  color: var(--color-ink-muted);
+  font-size: 12px;
+}
+
+.shortcuts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.shortcut {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 0.95rem 1rem;
+  min-width: 0;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.shortcut:hover,
+.shortcut:focus-visible {
+  border-color: #f0c7a8;
+  box-shadow: var(--shadow-soft);
+}
+
+.shortcutIcon {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--color-brand-soft);
+  color: var(--color-brand);
+  flex-shrink: 0;
+}
+
+.shortcutIcon svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.shortcut strong {
+  display: block;
+  font-size: 14px;
+}
+
+.shortcut em {
+  display: block;
+  font-style: normal;
+  color: var(--color-ink-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.panel {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 1rem 1.1rem 1.15rem;
+  min-width: 0;
+}
+
+.panelHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.panelHead h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.panelHead a {
+  color: var(--color-brand);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.skel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.orderList,
+.addressList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.orderRow {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.75rem 0.8rem;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.orderRow:hover,
+.orderRow:focus-visible {
+  border-color: #f0c7a8;
+}
+
+.orderRow p,
+.address p {
+  margin: 0.2rem 0 0;
+  color: var(--color-ink-muted);
+  font-size: 12px;
+}
+
+.amount {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.address {
+  padding: 0.8rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.address strong {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .shortcuts,
+  .columns,
+  .stats {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .heroActions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .stats,
+  .shortcuts,
+  .columns {
+    grid-template-columns: 1fr;
+  }
+
+  .orderRow {
+    grid-template-columns: 1fr auto;
+  }
+
+  .amount {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}

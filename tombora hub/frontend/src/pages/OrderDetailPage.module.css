@@ -1,0 +1,57 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.header h1 {
+  margin-bottom: 0.4rem;
+}
+
+.total {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.payBox {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.sellerOrder {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+
+.sellerOrder h2 {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+}
+
+.sellerOrder ul {
+  list-style: none;
+  margin: 0.75rem 0;
+  padding: 0;
+}
+
+.sellerOrder li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid #eef2ef;
+}

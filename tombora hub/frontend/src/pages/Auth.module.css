@@ -1,0 +1,312 @@
+.form {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 28px 20px 16px;
+  min-height: 330px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 20px;
+}
+
+.label {
+  display: block;
+  color: #222;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+.forgot {
+  float: right;
+  font-size: 14px;
+  font-weight: 500;
+  color: #246bb3;
+}
+
+.forgot:hover {
+  color: var(--color-brand);
+}
+
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid #ced3d9;
+  border-radius: 3px;
+  background: #fff;
+  font-size: 14px;
+  line-height: 22px;
+  color: #222;
+  font-weight: 400;
+}
+
+.input:hover {
+  border-color: #a1aab2;
+}
+
+.input:focus {
+  outline: 0;
+  border-color: #1470cc;
+}
+
+.input::placeholder {
+  color: #888;
+}
+
+.passwordWrap {
+  position: relative;
+}
+
+.passwordWrap .input {
+  padding-right: 34px;
+}
+
+.eye {
+  position: absolute;
+  right: 8px;
+  top: 0;
+  bottom: 0;
+  margin: auto;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: #888;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.eye:hover,
+.eye:focus-visible {
+  color: #222;
+  outline: none;
+}
+
+.eye svg {
+  width: 16px;
+  height: 16px;
+}
+
+.alert {
+  margin: 0 0 12px;
+}
+
+.actions {
+  margin-top: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.signIn,
+.joinFree {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 100px;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  padding: 9px 5px;
+  cursor: pointer;
+  line-height: 1.4;
+  text-decoration: none;
+}
+
+.signIn {
+  border: none;
+  background: var(--color-brand);
+  color: #fff;
+}
+
+.signIn:hover:not(:disabled) {
+  background: var(--color-brand-deep);
+}
+
+.signIn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.joinFree {
+  border: 1px solid #222;
+  background: #fff;
+  color: #222;
+}
+
+.joinFree:hover {
+  color: #fff;
+  background: #222;
+}
+
+.footHelp {
+  margin-top: auto;
+  padding-top: 24px;
+  font-size: 14px;
+  color: #222;
+  display: flex;
+  align-items: center;
+}
+
+.footHelp a {
+  color: #007dfa;
+  font-weight: 500;
+}
+
+.footHelp a:hover {
+  text-decoration: underline;
+}
+
+.dot {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #000;
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+
+.role {
+  border: 0;
+  margin: 0 0 20px;
+  padding: 0;
+}
+
+.role legend {
+  color: #222;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  padding: 0;
+}
+
+.roleRow {
+  display: flex;
+  gap: 8px;
+}
+
+.roleOption {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #ced3d9;
+  border-radius: 3px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.roleOption:has(input:checked) {
+  border-color: var(--color-brand);
+  background: var(--color-brand-soft);
+}
+
+.roleOption input {
+  accent-color: var(--color-brand);
+  margin: 0;
+}
+
+.terms {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: #555;
+  margin: 0 0 8px;
+  font-weight: 400;
+}
+
+.terms input {
+  margin-top: 2px;
+  accent-color: var(--color-brand);
+}
+
+.terms a {
+  color: #246bb3;
+}
+
+.terms a:hover {
+  color: var(--color-brand);
+}
+
+.social {
+  margin-top: 28px;
+  text-align: center;
+}
+
+.socialLabel {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #555;
+}
+
+.socialLogos {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
+.googleWrap {
+  position: relative;
+  width: 32px;
+  height: 32px;
+}
+
+.googleFace {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid #e2e6eb;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  pointer-events: none;
+}
+
+.googleFace svg {
+  width: 18px;
+  height: 18px;
+}
+
+.googleHit {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  overflow: hidden;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.googleHit :global(div),
+.googleHit :global(iframe) {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 32px !important;
+  height: 32px !important;
+}
+
+@media (max-width: 520px) {
+  .form {
+    padding: 22px 12px 12px;
+  }
+
+  .roleRow {
+    flex-direction: column;
+  }
+}
