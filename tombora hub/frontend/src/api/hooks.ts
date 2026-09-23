@@ -163,6 +163,7 @@ export type ProductListItem = {
     sku: string;
     name: string | null;
     attributes: Record<string, string>;
+    isActive?: boolean;
     price?: string | null;
     inventory: {
       quantity: number;
@@ -268,6 +269,12 @@ export function useStore(slug: string) {
         ApiSuccess<{
           store: import('@/components/product/SellerCard').StoreListItem & {
             products: ProductListItem[];
+            categories?: Array<{
+              id: string;
+              name: string;
+              slug: string;
+              children?: Array<{ id: string; name: string; slug: string }>;
+            }>;
             seller: {
               description: string | null;
               verificationStatus: string;
@@ -455,6 +462,7 @@ export type InventoryRow = {
   sku: string;
   name: string | null;
   attributes: Record<string, string>;
+  isActive: boolean;
   quantity: number;
   reserved: number;
   available: number;
@@ -477,7 +485,7 @@ export function useSellerInventory(stock?: string, q?: string, page = 1) {
       const { data } = await api.get<
         ApiSuccess<{
           items: InventoryRow[];
-          summary: { variants: number; inStock: number; lowStock: number; outOfStock: number };
+          summary: { variants: number; inStock: number; lowStock: number; outOfStock: number; notOffered: number };
           pagination: { page: number; limit: number; total: number; totalPages: number };
         }>
       >('/sellers/me/inventory', { params: { stock, q, page, limit: 50 } });
@@ -490,9 +498,15 @@ export function useSellerInventory(stock?: string, q?: string, page = 1) {
 export function useAdjustInventory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: { variantId: string; setQuantity: number; reason?: string }) => {
+    mutationFn: async (body: {
+      variantId: string;
+      setQuantity?: number;
+      isAvailable?: boolean;
+      reason?: string;
+    }) => {
       const { data } = await api.post(`/sellers/me/inventory/${body.variantId}/adjust`, {
         setQuantity: body.setQuantity,
+        isAvailable: body.isAvailable,
         reason: body.reason,
       });
       return data.data;
@@ -612,7 +626,19 @@ export function useCheckout() {
       const { data } = await api.post<
         ApiSuccess<{
           order: { id: string; orderNumber: string; total: string; status: string };
-          payment: { id: string; providerRef: string | null; status: string };
+          payment: {
+            id: string;
+            providerRef: string | null;
+            status: string;
+            method?: string;
+            amount?: string;
+            instructions?: {
+              title?: string;
+              message?: string;
+              network?: string;
+              phone?: string;
+            } | null;
+          };
         }>
       >('/checkout', body);
       return data.data;
@@ -620,6 +646,39 @@ export function useCheckout() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['cart'] });
       void qc.invalidateQueries({ queryKey: ['orders'] });
+    },
+  });
+}
+
+export function useVerifyPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (paymentId: string) => {
+      const { data } = await api.post<
+        ApiSuccess<{
+          payment: {
+            id: string;
+            status: string;
+            providerRef: string | null;
+            amount: string;
+            method: string;
+            instructions?: {
+              title?: string;
+              message?: string;
+              network?: string;
+              phone?: string;
+            } | null;
+            failureReason?: string | null;
+          };
+          order: { id: string; status: string };
+        }>
+      >(`/payments/${paymentId}/verify`);
+      return data.data;
+    },
+    onSuccess: (result) => {
+      void qc.invalidateQueries({ queryKey: ['orders'] });
+      void qc.invalidateQueries({ queryKey: ['orders', result.order.id] });
+      void qc.invalidateQueries({ queryKey: ['cart'] });
     },
   });
 }

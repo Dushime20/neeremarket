@@ -1,7 +1,10 @@
 import { config as loadEnv } from 'dotenv';
+import path from 'node:path';
 import { z } from 'zod';
 
 loadEnv();
+loadEnv({ path: path.resolve(process.cwd(), '../.env') });
+loadEnv({ path: path.resolve(__dirname, '../../../.env') });
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -21,7 +24,14 @@ const envSchema = z.object({
   COMMISSION_DEFAULT_RATE_BPS: z.coerce.number().default(1000),
   RETURN_WINDOW_DAYS: z.coerce.number().default(7),
   DEFAULT_CURRENCY: z.string().default('RWF'),
-  PAYMENT_PROVIDER: z.string().default('mock'),
+  PAYMENT_PROVIDER: z.string().default('fdi'),
+  FDI_BASE_URL: z.string().optional().default(''),
+  FDI_APP_ID: z.string().optional().default(''),
+  FDI_APP_SECRET: z.string().optional().default(''),
+  FDI_COLLECTION_ACCOUNT_ID: z.string().optional().default(''),
+  FDI_PAYOUT_ACCOUNT_ID: z.string().optional().default(''),
+  FDI_DEFAULT_CHANNEL: z.string().optional().default('momo-mtn-rw'),
+  FDI_CALLBACK_BASE_URL: z.string().optional().default(''),
   STORAGE_PROVIDER: z.string().default('local'),
   STORAGE_LOCAL_PATH: z.string().default('./uploads'),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(900_000),

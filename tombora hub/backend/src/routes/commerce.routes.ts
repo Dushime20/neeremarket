@@ -30,6 +30,15 @@ paymentRouter.post(
   '/webhooks/:provider',
   asyncHandler(commerceController.paymentWebhook),
 );
+paymentRouter.post(
+  '/fdi/webhook',
+  asyncHandler(commerceController.fdiPaymentWebhook),
+);
+paymentRouter.post(
+  '/:paymentId/verify',
+  requireAuth,
+  asyncHandler(commerceController.verifyPayment),
+);
 
 export const sellerOrderRouter = Router();
 sellerOrderRouter.use(requireAuth, requireRole('SELLER', 'SUPER_ADMIN', 'ADMIN'));

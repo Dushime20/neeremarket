@@ -1,19 +1,25 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { useMe, useSellerProfile, useUpdateSellerProfile } from '@/api/hooks';
+import { useMe, useSellerProfile, useUpdateSellerProfile, useUploadMedia } from '@/api/hooks';
 import { Alert, Badge, Button, EmptyState, Input } from '@/components/ui';
 import { getErrorMessage } from '@/api/client';
 import { prettyStatus, statusTone } from '@/utils/status';
 import styles from './workspace.module.css';
 
+type ImageKind = 'logo' | 'cover';
+
 export function SellerProfilePage() {
   const navigate = useNavigate();
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const { data: user } = useMe();
   const { data: seller, isLoading } = useSellerProfile();
   const update = useUpdateSellerProfile();
+  const upload = useUploadMedia();
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [uploading, setUploading] = useState<ImageKind | null>(null);
   const [form, setForm] = useState({
     businessName: '',
     description: '',
@@ -55,6 +61,30 @@ export function SellerProfilePage() {
     );
   }
 
+  async function uploadImage(kind: ImageKind, file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith('image/') && !/\.(jpe?g|png|webp|gif)$/i.test(file.name)) {
+      setErr('Use a JPG, PNG, WEBP, or GIF image.');
+      return;
+    }
+    setMsg(null);
+    setErr(null);
+    setUploading(kind);
+    try {
+      const files = await upload.mutateAsync([file]);
+      const url = files.find((item) => item.kind === 'image')?.url || files[0]?.url;
+      if (!url) throw new Error('Upload did not return an image URL');
+      setForm((current) => ({
+        ...current,
+        [kind === 'logo' ? 'logoUrl' : 'coverUrl']: url,
+      }));
+    } catch (ex) {
+      setErr(getErrorMessage(ex, 'Could not upload image'));
+    } finally {
+      setUploading(null);
+    }
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setMsg(null);
@@ -62,14 +92,16 @@ export function SellerProfilePage() {
     try {
       await update.mutateAsync({
         ...form,
-        logoUrl: form.logoUrl || undefined,
-        coverUrl: form.coverUrl || undefined,
+        logoUrl: form.logoUrl || null,
+        coverUrl: form.coverUrl || null,
       });
       setMsg('Store profile saved');
     } catch (ex) {
       setErr(getErrorMessage(ex));
     }
   }
+
+  const busy = update.isPending || upload.isPending || Boolean(uploading);
 
   return (
     <div className={styles.stack}>
@@ -154,17 +186,96 @@ export function SellerProfilePage() {
                   value={form.whatsappNumber}
                   onChange={(e) => setForm({ ...form, whatsappNumber: e.target.value })}
                 />
-                <Input
-                  label="Logo URL"
-                  value={form.logoUrl}
-                  onChange={(e) => setForm({ ...form, logoUrl: e.target.value })}
-                />
-                <Input
-                  label="Cover URL"
-                  value={form.coverUrl}
-                  onChange={(e) => setForm({ ...form, coverUrl: e.target.value })}
-                />
-                <Button type="submit" disabled={update.isPending}>
+
+                <div className={styles.mediaField}>
+                  <span>Logo</span>
+                  <div className={styles.mediaRow}>
+                    {form.logoUrl ? (
+                      <img className={styles.mediaLogo} src={form.logoUrl} alt="" />
+                    ) : (
+                      <span className={styles.mediaLogoPh}>Logo</span>
+                    )}
+                    <div className={styles.mediaActions}>
+                      <input
+                        ref={logoInputRef}
+                        className={styles.hiddenFile}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
+                        onChange={(e) => {
+                          void uploadImage('logo', e.target.files?.[0]);
+                          e.target.value = '';
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={() => logoInputRef.current?.click()}
+                      >
+                        {uploading === 'logo' ? 'Uploading…' : form.logoUrl ? 'Replace logo' : 'Upload logo'}
+                      </Button>
+                      {form.logoUrl ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          disabled={busy}
+                          onClick={() => setForm((current) => ({ ...current, logoUrl: '' }))}
+                        >
+                          Remove
+                        </Button>
+                      ) : null}
+                      <small>JPG, PNG, WEBP, or GIF · up to 12MB</small>
+                    </div>
+                  </div>
+                </div>
+
+                <div className={styles.mediaField}>
+                  <span>Cover image</span>
+                  <div className={styles.mediaCoverWrap}>
+                    {form.coverUrl ? (
+                      <img className={styles.mediaCover} src={form.coverUrl} alt="" />
+                    ) : (
+                      <span className={styles.mediaCoverPh}>No cover yet</span>
+                    )}
+                    <div className={styles.mediaActions}>
+                      <input
+                        ref={coverInputRef}
+                        className={styles.hiddenFile}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
+                        onChange={(e) => {
+                          void uploadImage('cover', e.target.files?.[0]);
+                          e.target.value = '';
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={() => coverInputRef.current?.click()}
+                      >
+                        {uploading === 'cover' ? 'Uploading…' : form.coverUrl ? 'Replace cover' : 'Upload cover'}
+                      </Button>
+                      {form.coverUrl ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          disabled={busy}
+                          onClick={() => setForm((current) => ({ ...current, coverUrl: '' }))}
+                        >
+                          Remove
+                        </Button>
+                      ) : null}
+                      <small>Wide photo works best · up to 12MB</small>
+                    </div>
+                  </div>
+                </div>
+
+                <Button type="submit" disabled={busy}>
                   {update.isPending ? 'Saving…' : 'Save profile'}
                 </Button>
               </form>
@@ -177,11 +288,16 @@ export function SellerProfilePage() {
             <div className={styles.panelBody}>
               {form.coverUrl ? <img className={styles.cover} src={form.coverUrl} alt="" /> : null}
               <div className={styles.item} style={{ marginTop: '0.85rem' }}>
-                {form.logoUrl ? <img className={styles.thumb} src={form.logoUrl} alt="" /> : <span className={styles.avatar}>NM</span>}
+                {form.logoUrl ? (
+                  <img className={styles.thumb} src={form.logoUrl} alt="" />
+                ) : (
+                  <span className={styles.avatar}>NM</span>
+                )}
                 <span>
                   <strong>{form.businessName || 'Store name'}</strong>
                   <small>
-                    {form.district || 'District'} {form.province ? `Â· ${form.province}` : ''}
+                    {form.district || 'District'}
+                    {form.province ? ` · ${form.province}` : ''}
                   </small>
                 </span>
               </div>

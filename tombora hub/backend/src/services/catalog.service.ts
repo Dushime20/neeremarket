@@ -297,6 +297,19 @@ function asAttributes(value: Prisma.JsonValue): Record<string, string> {
   );
 }
 
+function attributeSignature(value: Prisma.JsonValue | Record<string, string>) {
+  const attrs =
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? asAttributes(value as Prisma.JsonValue)
+      : {};
+  return Object.entries(attrs)
+    .map(([key, val]) => [key.trim().toLowerCase(), val.trim().toLowerCase()] as const)
+    .filter(([key, val]) => key && val && !(key === 'type' && val === 'standard'))
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, val]) => `${key}=${val}`)
+    .join('|');
+}
+
 export function asSpecifications(value: Prisma.JsonValue | null | undefined) {
   if (!Array.isArray(value)) return [];
   return value
@@ -353,6 +366,7 @@ export async function listSellerInventory(userId: string, query: InventoryListQu
     attributes: Prisma.JsonValue;
     quantity: number;
     reserved: number;
+    is_active: boolean;
     low_stock_threshold: number;
     product_id: string;
     product_name: string;
@@ -362,13 +376,15 @@ export async function listSellerInventory(userId: string, query: InventoryListQu
   };
 
   const stockSql =
-    query.stock === 'out'
-      ? Prisma.sql`AND (i.quantity - i.reserved) <= 0`
-      : query.stock === 'low'
-        ? Prisma.sql`AND (i.quantity - i.reserved) > 0 AND (i.quantity - i.reserved) <= i.low_stock_threshold`
-        : query.stock === 'in'
-          ? Prisma.sql`AND (i.quantity - i.reserved) > i.low_stock_threshold`
-          : Prisma.empty;
+    query.stock === 'off'
+      ? Prisma.sql`AND v.is_active = false`
+      : query.stock === 'out'
+        ? Prisma.sql`AND v.is_active = true AND (i.quantity - i.reserved) <= 0`
+        : query.stock === 'low'
+          ? Prisma.sql`AND v.is_active = true AND (i.quantity - i.reserved) > 0 AND (i.quantity - i.reserved) <= i.low_stock_threshold`
+          : query.stock === 'in'
+            ? Prisma.sql`AND v.is_active = true AND (i.quantity - i.reserved) > i.low_stock_threshold`
+            : Prisma.empty;
 
   const searchSql = qLike
     ? Prisma.sql`AND (
@@ -380,19 +396,25 @@ export async function listSellerInventory(userId: string, query: InventoryListQu
     : Prisma.empty;
 
   const [summaryRows, totalRows, items] = await Promise.all([
-    prisma.$queryRaw<Array<{ variants: bigint; in_stock: bigint; low_stock: bigint; out_of_stock: bigint }>>`
+    prisma.$queryRaw<Array<{ variants: bigint; in_stock: bigint; low_stock: bigint; out_of_stock: bigint; not_offered: bigint }>>`
       SELECT
         COUNT(*)::bigint AS variants,
         COUNT(*) FILTER (
-          WHERE (i.quantity - i.reserved) > i.low_stock_threshold
+          WHERE v.is_active = true
+            AND (i.quantity - i.reserved) > i.low_stock_threshold
         )::bigint AS in_stock,
         COUNT(*) FILTER (
-          WHERE (i.quantity - i.reserved) > 0
+          WHERE v.is_active = true
+            AND (i.quantity - i.reserved) > 0
             AND (i.quantity - i.reserved) <= i.low_stock_threshold
         )::bigint AS low_stock,
         COUNT(*) FILTER (
-          WHERE (i.quantity - i.reserved) <= 0
-        )::bigint AS out_of_stock
+          WHERE v.is_active = true
+            AND (i.quantity - i.reserved) <= 0
+        )::bigint AS out_of_stock,
+        COUNT(*) FILTER (
+          WHERE v.is_active = false
+        )::bigint AS not_offered
       FROM product_variants v
       JOIN inventory i ON i.variant_id = v.id
       JOIN products p ON p.id = v.product_id
@@ -415,6 +437,7 @@ export async function listSellerInventory(userId: string, query: InventoryListQu
         v.sku,
         v.name,
         v.attributes,
+        v.is_active,
         i.quantity,
         i.reserved,
         i.low_stock_threshold,
@@ -454,12 +477,13 @@ export async function listSellerInventory(userId: string, query: InventoryListQu
         sku: row.sku,
         name: row.name,
         attributes: asAttributes(row.attributes),
+        isActive: row.is_active,
         quantity: row.quantity,
         reserved: row.reserved,
         available,
         lowStockThreshold: threshold,
-        isOut: available <= 0,
-        isLow: available > 0 && available <= threshold,
+        isOut: row.is_active && available <= 0,
+        isLow: row.is_active && available > 0 && available <= threshold,
         product: {
           id: row.product_id,
           name: row.product_name,
@@ -474,6 +498,7 @@ export async function listSellerInventory(userId: string, query: InventoryListQu
       inStock: Number(summaryRow?.in_stock ?? 0),
       lowStock: Number(summaryRow?.low_stock ?? 0),
       outOfStock: Number(summaryRow?.out_of_stock ?? 0),
+      notOffered: Number(summaryRow?.not_offered ?? 0),
     },
     pagination: {
       page: query.page,
@@ -520,6 +545,11 @@ export async function createSellerProduct(userId: string, input: CreateProductIn
       ? 'ACTIVE'
       : 'PENDING_APPROVAL'
     : 'DRAFT';
+
+  const skuSet = new Set(input.variants.map((variant) => variant.sku));
+  if (skuSet.size !== input.variants.length) {
+    throw Errors.conflict('Each stock line needs a unique SKU');
+  }
 
   const slug = await uniqueSlug(input.name, async (s) => {
     const found = await prisma.product.findUnique({ where: { slug: s } });
@@ -580,11 +610,12 @@ export async function createSellerProduct(userId: string, input: CreateProductIn
           price: variant.price != null ? BigInt(variant.price) : null,
           weightGrams: variant.weightGrams,
           imageUrl: variant.imageUrl,
+          isActive: variant.isActive !== false,
           inventory: {
             create: {
               quantity: variant.stock,
               reserved: 0,
-              lowStockThreshold: variant.lowStockThreshold,
+              lowStockThreshold: variant.lowStockThreshold ?? 5,
             },
           },
         },
@@ -629,6 +660,131 @@ export async function getSellerProduct(userId: string, productId: string) {
   });
   if (!product) throw Errors.notFound('Product');
   return mapSellerProduct(product as never);
+}
+
+type VariantWrite = NonNullable<UpdateProductInput['variants']>[number];
+
+async function syncProductVariants(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  productId: string,
+  variants: VariantWrite[],
+) {
+  const skus = variants.map((variant) => variant.sku);
+  if (new Set(skus).size !== skus.length) {
+    throw Errors.conflict('Each stock line needs a unique SKU');
+  }
+
+  const existing = await tx.productVariant.findMany({
+    where: { productId },
+    include: { inventory: true },
+  });
+  const reservedIds = new Set(
+    variants
+      .map((variant) => variant.id)
+      .filter((id): id is string => Boolean(id))
+      .filter((id) => existing.some((row) => row.id === id)),
+  );
+  const used = new Set<string>();
+
+  for (const variant of variants) {
+    const byId = variant.id ? existing.find((row) => row.id === variant.id) : undefined;
+    const bySignature = existing.find(
+      (row) =>
+        !reservedIds.has(row.id) &&
+        !used.has(row.id) &&
+        attributeSignature(row.attributes) === attributeSignature(variant.attributes),
+    );
+    const match = byId || bySignature;
+
+    if (match) {
+      used.add(match.id);
+      if (variant.sku !== match.sku) {
+        const taken = await tx.productVariant.findFirst({
+          where: { sku: variant.sku, NOT: { id: match.id } },
+        });
+        if (taken) throw Errors.conflict(`SKU already exists: ${variant.sku}`);
+      }
+
+      await tx.productVariant.update({
+        where: { id: match.id },
+        data: {
+          sku: variant.sku,
+          name: variant.name,
+          attributes: variant.attributes as Prisma.InputJsonValue,
+          isActive: variant.isActive !== false,
+          price: variant.price != null ? BigInt(variant.price) : match.price,
+          weightGrams: variant.weightGrams,
+          imageUrl: variant.imageUrl,
+        },
+      });
+
+      if (match.inventory) {
+        if (variant.stock < match.inventory.reserved) {
+          throw Errors.conflict(
+            `Stock for ${variant.name || variant.sku} cannot be lower than ${match.inventory.reserved} reserved units`,
+          );
+        }
+        if (variant.stock !== match.inventory.quantity || variant.lowStockThreshold != null) {
+          await tx.inventory.update({
+            where: { id: match.inventory.id },
+            data: {
+              quantity: variant.stock,
+              ...(variant.lowStockThreshold != null
+                ? { lowStockThreshold: variant.lowStockThreshold }
+                : {}),
+            },
+          });
+        }
+        if (variant.stock !== match.inventory.quantity) {
+          await tx.inventoryMovement.create({
+            data: {
+              inventoryId: match.inventory.id,
+              type: 'ADJUSTMENT',
+              delta: variant.stock - match.inventory.quantity,
+              reason: 'Listing stock update',
+              actorId: userId,
+            },
+          });
+        }
+      }
+      continue;
+    }
+
+    const taken = await tx.productVariant.findUnique({ where: { sku: variant.sku } });
+    if (taken) throw Errors.conflict(`SKU already exists: ${variant.sku}`);
+
+    await tx.productVariant.create({
+      data: {
+        productId,
+        sku: variant.sku,
+        name: variant.name,
+        attributes: variant.attributes as Prisma.InputJsonValue,
+        price: variant.price != null ? BigInt(variant.price) : null,
+        weightGrams: variant.weightGrams,
+        imageUrl: variant.imageUrl,
+        isActive: variant.isActive !== false,
+        inventory: {
+          create: {
+            quantity: variant.stock,
+            reserved: 0,
+            lowStockThreshold: variant.lowStockThreshold ?? 5,
+          },
+        },
+      },
+    });
+  }
+
+  for (const leftover of existing) {
+    if (!used.has(leftover.id) && leftover.isActive) {
+      await tx.productVariant.update({
+        where: { id: leftover.id },
+        data: { isActive: false },
+      });
+    }
+  }
+
+  await syncProductStockStatus(tx, productId);
 }
 
 export async function updateSellerProduct(
@@ -695,7 +851,7 @@ export async function updateSellerProduct(
       }
     }
 
-    return tx.product.update({
+    await tx.product.update({
       where: { id: product.id },
       data: {
         name: input.name,
@@ -725,19 +881,27 @@ export async function updateSellerProduct(
         seoDescription: input.seoDescription === undefined ? undefined : input.seoDescription,
         status: nextStatus,
       },
+    });
+
+    if (input.variants) {
+      await syncProductVariants(tx, userId, product.id, input.variants);
+    }
+
+    return tx.product.findUniqueOrThrow({
+      where: { id: product.id },
       include: {
         images: { orderBy: { sortOrder: 'asc' } },
         videos: { orderBy: { sortOrder: 'asc' } },
         variants: { include: { inventory: true } },
         category: {
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      parentId: true,
-      parent: { select: { id: true, name: true, slug: true } },
-    },
-  },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            parentId: true,
+            parent: { select: { id: true, name: true, slug: true } },
+          },
+        },
       },
     });
   });
@@ -763,7 +927,7 @@ export async function deleteSellerProduct(userId: string, productId: string) {
 export async function adjustVariantStock(
   userId: string,
   variantId: string,
-  input: { quantity?: number; setQuantity?: number; reason?: string },
+  input: { quantity?: number; setQuantity?: number; isAvailable?: boolean; reason?: string },
 ) {
   const seller = await getSellerProfileByUserId(userId);
 
@@ -777,10 +941,14 @@ export async function adjustVariantStock(
     });
     if (!variant?.inventory) throw Errors.notFound('Inventory');
 
-    const inventory = await tx.inventory.findUniqueOrThrow({
-      where: { id: variant.inventory.id },
-    });
+    if (input.isAvailable != null && input.isAvailable !== variant.isActive) {
+      await tx.productVariant.update({
+        where: { id: variant.id },
+        data: { isActive: input.isAvailable },
+      });
+    }
 
+    const inventory = variant.inventory;
     const delta =
       input.setQuantity != null ? input.setQuantity - inventory.quantity : (input.quantity ?? 0);
     const nextQty = inventory.quantity + delta;
@@ -788,26 +956,32 @@ export async function adjustVariantStock(
       throw Errors.insufficientStock();
     }
 
-    const updated = await tx.inventory.update({
-      where: { id: inventory.id },
-      data: { quantity: nextQty },
-    });
+    const updated =
+      delta === 0
+        ? inventory
+        : await tx.inventory.update({
+            where: { id: inventory.id },
+            data: { quantity: nextQty },
+          });
 
-    await tx.inventoryMovement.create({
-      data: {
-        inventoryId: inventory.id,
-        type: 'ADJUSTMENT',
-        delta,
-        reason: input.reason || (input.setQuantity != null ? 'Set on-hand quantity' : 'Manual adjustment'),
-        actorId: userId,
-      },
-    });
+    if (delta !== 0) {
+      await tx.inventoryMovement.create({
+        data: {
+          inventoryId: inventory.id,
+          type: 'ADJUSTMENT',
+          delta,
+          reason: input.reason || (input.setQuantity != null ? 'Set on-hand quantity' : 'Manual adjustment'),
+          actorId: userId,
+        },
+      });
+    }
 
     await syncProductStockStatus(tx, variant.productId);
 
     return {
       ...updated,
       available: updated.quantity - updated.reserved,
+      isActive: input.isAvailable ?? variant.isActive,
     };
   });
 }

@@ -1,3 +1,5 @@
+import { FdiPaymentProvider } from './fdi.provider';
+
 export type PaymentCreateInput = {
   amount: number;
   currency: string;
@@ -22,7 +24,10 @@ export type PaymentWebhookResult = {
 export interface PaymentProvider {
   readonly code: string;
   createPayment(input: PaymentCreateInput): Promise<PaymentCreateResult>;
-  verifyWebhook(headers: Record<string, string | string[] | undefined>, body: unknown): Promise<PaymentWebhookResult>;
+  verifyWebhook(
+    headers: Record<string, string | string[] | undefined>,
+    body: unknown,
+  ): Promise<PaymentWebhookResult>;
 }
 
 export class MockPaymentProvider implements PaymentProvider {
@@ -32,7 +37,15 @@ export class MockPaymentProvider implements PaymentProvider {
     return {
       providerRef: `MOCK-${input.idempotencyKey}`,
       status: 'PENDING',
-      raw: { simulated: true },
+      raw: {
+        simulated: true,
+        instructions: {
+          title: 'Demo payment',
+          message: 'Use the confirm button to simulate a successful Mobile Money payment.',
+          network: 'Demo',
+          phone: input.customerPhone || '',
+        },
+      },
     };
   }
 
@@ -49,11 +62,13 @@ export class MockPaymentProvider implements PaymentProvider {
   }
 }
 
-/** Future: MTNMoMoProvider, AirtelMoneyProvider, CardProvider */
 export function getPaymentProvider(code: string): PaymentProvider {
-  switch (code) {
+  switch ((code || '').toLowerCase()) {
+    case 'fdi':
+      return new FdiPaymentProvider();
     case 'mock':
-    default:
       return new MockPaymentProvider();
+    default:
+      return new FdiPaymentProvider();
   }
 }

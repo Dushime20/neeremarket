@@ -22,7 +22,20 @@ function attrKeys(variants: VariantOption[]) {
   for (const v of variants) {
     Object.keys(v.attributes || {}).forEach((k) => keys.add(k));
   }
-  const preferred = ['color', 'Colour', 'size', 'Size'];
+  const preferred = [
+    'model',
+    'generation',
+    'version',
+    'color',
+    'colour',
+    'size',
+    'storage',
+    'ram',
+    'shade',
+    'scent',
+    'material',
+    'finish',
+  ];
   const ordered = preferred.filter((k) =>
     [...keys].some((key) => key.toLowerCase() === k.toLowerCase()),
   );

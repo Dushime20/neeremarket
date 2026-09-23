@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { useCategories, useProducts, useStore } from '@/api/hooks';
+import { useProducts, useStore } from '@/api/hooks';
 import { Alert, Badge, Button, EmptyState, Input, ProductGridSkeleton, Rating } from '@/components/ui';
 import { ProductGrid } from '@/components/product';
 import gridStyles from '@/components/product/ProductGrid.module.css';
@@ -45,7 +45,7 @@ export function StorefrontPage() {
 
   const { data: store, isLoading: storeLoading, isError: storeError, error: storeErr } =
     useStore(slug);
-  const { data: allCategories } = useCategories();
+  const storeCategories = store?.categories || [];
 
   const productParams = useMemo(
     () => ({
@@ -224,7 +224,7 @@ export function StorefrontPage() {
                       All categories
                     </button>
                   </li>
-                  {(allCategories || []).map((item) => (
+                  {(storeCategories || []).map((item) => (
                     <li key={item.id}>
                       <label
                         className={`${browseStyles.checkRow} ${
@@ -240,6 +240,31 @@ export function StorefrontPage() {
                         />
                         {item.name}
                       </label>
+                      {item.children?.length ? (
+                        <ul className={browseStyles.checkList}>
+                          {item.children.map((child) => (
+                            <li key={child.id}>
+                              <label
+                                className={`${browseStyles.checkRow} ${
+                                  category === child.slug ? browseStyles.checkOn : ''
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={category === child.slug}
+                                  onChange={() =>
+                                    setParam(
+                                      'category',
+                                      category === child.slug ? null : child.slug,
+                                    )
+                                  }
+                                />
+                                {child.name}
+                              </label>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
                     </li>
                   ))}
                 </ul>

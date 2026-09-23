@@ -107,6 +107,11 @@ export async function checkout(userId: string, input: CheckoutInput) {
   });
 
   if (existingPayment?.order) {
+    const lastTx = await prisma.paymentTransaction.findFirst({
+      where: { paymentId: existingPayment.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    const raw = (lastTx?.rawPayload || {}) as Record<string, unknown>;
     return {
       order: serializeMoneyOrder(existingPayment.order),
       payment: {
@@ -115,6 +120,7 @@ export async function checkout(userId: string, input: CheckoutInput) {
         providerRef: existingPayment.providerRef,
         method: existingPayment.method,
         amount: String(existingPayment.amount),
+        instructions: (raw.instructions as Record<string, string> | undefined) || null,
       },
       idempotent: true,
     };
@@ -193,7 +199,9 @@ export async function checkout(userId: string, input: CheckoutInput) {
   const total = subtotal + deliveryFee - discountTotal + platformCharges;
 
   const sellerIds = [...new Set(lines.map((l) => l.sellerId))];
-  const provider = getPaymentProvider(env.PAYMENT_PROVIDER);
+  const provider = getPaymentProvider(
+    input.paymentMethod === 'MOCK' ? 'mock' : env.PAYMENT_PROVIDER || 'fdi',
+  );
 
   const result = await prisma.$transaction(async (tx) => {
     const orderNumber = await nextOrderNumber(tx);
@@ -291,32 +299,6 @@ export async function checkout(userId: string, input: CheckoutInput) {
       throw err;
     }
 
-    const providerResult = await provider.createPayment({
-      amount: Number(total),
-      currency: env.DEFAULT_CURRENCY,
-      orderId: order.id,
-      customerPhone: input.customerPhone || address.phone,
-      idempotencyKey: input.idempotencyKey,
-      method: input.paymentMethod,
-    });
-
-    payment = await tx.payment.update({
-      where: { id: payment.id },
-      data: {
-        status: 'PENDING',
-        providerRef: providerResult.providerRef,
-      },
-    });
-
-    await tx.paymentTransaction.create({
-      data: {
-        paymentId: payment.id,
-        providerRef: providerResult.providerRef,
-        status: providerResult.status,
-        rawPayload: providerResult.raw as object | undefined,
-      },
-    });
-
     const full = await tx.order.findUniqueOrThrow({
       where: { id: order.id },
       include: {
@@ -326,22 +308,98 @@ export async function checkout(userId: string, input: CheckoutInput) {
       },
     });
 
-    return { order: full, payment };
+    return { order: full, payment, phone: input.customerPhone || address.phone };
+  });
+
+  let providerResult;
+  try {
+    providerResult = await provider.createPayment({
+      amount: Number(result.order.total),
+      currency: env.DEFAULT_CURRENCY,
+      orderId: result.order.id,
+      customerPhone: result.phone,
+      idempotencyKey: input.idempotencyKey,
+      method: input.paymentMethod,
+    });
+  } catch (err) {
+    await failCheckoutPayment(
+      result.order.id,
+      result.payment.id,
+      err instanceof Error ? err.message : 'Payment initiation failed',
+    );
+    throw Errors.validation(err instanceof Error ? err.message : 'Payment initiation failed');
+  }
+
+  const payment = await prisma.payment.update({
+    where: { id: result.payment.id },
+    data: {
+      status: 'PENDING',
+      providerRef: providerResult.providerRef,
+    },
+  });
+
+  await prisma.paymentTransaction.create({
+    data: {
+      paymentId: payment.id,
+      providerRef: providerResult.providerRef,
+      status: providerResult.status,
+      rawPayload: providerResult.raw as object | undefined,
+    },
   });
 
   domainEvents.emit('OrderCreated', { orderId: result.order.id });
 
+  const raw = (providerResult.raw || {}) as Record<string, unknown>;
+  const instructions = (raw.instructions || null) as
+    | { title?: string; message?: string; network?: string; phone?: string }
+    | null;
+
   return {
     order: serializeMoneyOrder(result.order),
     payment: {
-      id: result.payment.id,
-      status: result.payment.status,
-      providerRef: result.payment.providerRef,
-      method: result.payment.method,
-      amount: String(result.payment.amount),
+      id: payment.id,
+      status: payment.status,
+      providerRef: payment.providerRef,
+      method: payment.method,
+      amount: String(payment.amount),
+      instructions,
     },
     idempotent: false,
   };
+}
+
+async function failCheckoutPayment(orderId: string, paymentId: string, reason: string) {
+  await prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      include: { sellerOrders: { include: { items: true } } },
+    });
+    if (!order) return;
+
+    await tx.payment.update({
+      where: { id: paymentId },
+      data: { status: 'FAILED', failureReason: reason.slice(0, 255) },
+    });
+
+    for (const sellerOrder of order.sellerOrders) {
+      for (const item of sellerOrder.items) {
+        await releaseReservedStock(tx, item.variantId, item.quantity, orderId, 'Payment start failed');
+      }
+    }
+
+    if (order.status === 'PENDING_PAYMENT') {
+      await tx.order.update({ where: { id: orderId }, data: { status: 'CANCELLED' } });
+      await tx.sellerOrder.updateMany({ where: { orderId }, data: { status: 'CANCELLED' } });
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId,
+          fromStatus: 'PENDING_PAYMENT',
+          toStatus: 'CANCELLED',
+          reason: reason.slice(0, 255),
+        },
+      });
+    }
+  });
 }
 
 export async function confirmPaymentFromWebhook(
@@ -349,8 +407,16 @@ export async function confirmPaymentFromWebhook(
   headers: Record<string, string | string[] | undefined>,
   body: unknown,
 ) {
-  const provider = getPaymentProvider(providerCode === 'mock' ? 'mock' : env.PAYMENT_PROVIDER);
+  const provider = getPaymentProvider(
+    providerCode === 'fdi' || providerCode === 'mock' ? providerCode : env.PAYMENT_PROVIDER,
+  );
   const verified = await provider.verifyWebhook(headers, body);
+  if (!verified.providerRef || verified.providerRef === 'UNKNOWN') {
+    throw Errors.validation('Webhook missing payment reference');
+  }
+  if (verified.status === 'PENDING') {
+    return { duplicate: false, status: 'PENDING' };
+  }
   const payloadHash = createHash('sha256')
     .update(JSON.stringify({ providerCode, ...verified, body }))
     .digest('hex');
@@ -363,7 +429,12 @@ export async function confirmPaymentFromWebhook(
   }
 
   const payment = await prisma.payment.findFirst({
-    where: { providerRef: verified.providerRef },
+    where: {
+      OR: [
+        { providerRef: verified.providerRef },
+        { transactions: { some: { providerRef: verified.providerRef } } },
+      ],
+    },
     include: {
       order: {
         include: {
@@ -530,6 +601,70 @@ export async function mockPayOrder(userId: string, orderId: string) {
     status: 'PAID',
     amount: Number(payment.amount),
   });
+}
+
+export async function verifyCustomerPayment(userId: string, paymentId: string) {
+  const payment = await prisma.payment.findFirst({
+    where: { id: paymentId, order: { customerId: userId } },
+    include: {
+      order: true,
+      transactions: { orderBy: { createdAt: 'desc' }, take: 1 },
+    },
+  });
+  if (!payment) throw Errors.notFound('Payment');
+
+  const raw = (payment.transactions[0]?.rawPayload || {}) as Record<string, unknown>;
+
+  if (payment.status === 'PAID' || payment.status === 'FAILED' || payment.status === 'CANCELLED') {
+    return {
+      payment: {
+        id: payment.id,
+        status: payment.status,
+        providerRef: payment.providerRef,
+        amount: String(payment.amount),
+        method: payment.method,
+        instructions: (raw.instructions as Record<string, string> | undefined) || null,
+        failureReason: payment.failureReason,
+      },
+      order: { id: payment.orderId, status: payment.order.status },
+    };
+  }
+
+  if (!payment.providerRef) throw Errors.conflict('Payment has no provider reference yet');
+
+  if (payment.provider === 'fdi' || env.PAYMENT_PROVIDER === 'fdi') {
+    const { fdiGetTransaction } = await import('../providers/payment/fdi.client');
+    const live = await fdiGetTransaction(payment.providerRef);
+    if (live.status === 'SUCCESSFUL') {
+      await confirmPaymentFromWebhook('fdi', {}, {
+        status: 'success',
+        data: { state: 'successful', trxRef: payment.providerRef },
+      });
+    } else if (live.status === 'FAILED') {
+      await confirmPaymentFromWebhook('fdi', {}, {
+        status: 'fail',
+        data: { state: 'failed', trxRef: payment.providerRef, message: live.reason },
+      });
+    }
+  }
+
+  const refreshed = await prisma.payment.findUniqueOrThrow({
+    where: { id: payment.id },
+    include: { order: true },
+  });
+
+  return {
+    payment: {
+      id: refreshed.id,
+      status: refreshed.status,
+      providerRef: refreshed.providerRef,
+      amount: String(refreshed.amount),
+      method: refreshed.method,
+      instructions: (raw.instructions as Record<string, string> | undefined) || null,
+      failureReason: refreshed.failureReason,
+    },
+    order: { id: refreshed.orderId, status: refreshed.order.status },
+  };
 }
 
 export async function listCustomerOrders(userId: string, page = 1, limit = 20) {

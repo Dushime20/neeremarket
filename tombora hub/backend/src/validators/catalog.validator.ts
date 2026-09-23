@@ -47,14 +47,29 @@ const productSpecSchema = z.object({
 });
 
 const productVariantSchema = z.object({
+  id: z.string().uuid().optional(),
   sku: z.string().min(1).max(64),
-  name: z.string().optional(),
-  attributes: z.record(z.string()),
+  name: z.string().max(160).optional(),
+  attributes: z.record(z.string().min(1).max(80)).superRefine((attrs, ctx) => {
+    const keys = Object.keys(attrs);
+    if (!keys.length) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Each stock line needs at least one attribute' });
+    }
+    if (keys.length > 8) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'A stock line can have at most 8 attributes' });
+    }
+    for (const key of keys) {
+      if (!key.trim() || key.trim().length > 40) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Attribute names must be 1–40 characters' });
+      }
+    }
+  }),
   price: z.number().int().positive().optional(),
   stock: z.number().int().min(0).default(0),
-  lowStockThreshold: z.number().int().min(0).default(5),
+  lowStockThreshold: z.number().int().min(0).optional(),
   weightGrams: z.number().int().positive().optional(),
   imageUrl: z.string().url().optional(),
+  isActive: z.boolean().optional(),
 });
 
 export const createProductSchema = z.object({
@@ -78,7 +93,7 @@ export const createProductSchema = z.object({
   seoDescription: z.string().max(320).optional(),
   images: z.array(productImageSchema).max(12).default([]),
   videos: z.array(productVideoSchema).max(6).default([]),
-  variants: z.array(productVariantSchema).min(1),
+  variants: z.array(productVariantSchema).min(1).max(80),
   submitForApproval: z.boolean().default(false),
 });
 
@@ -106,6 +121,7 @@ export const updateProductSchema = z.object({
   submitForApproval: z.boolean().optional(),
   unpublish: z.boolean().optional(),
   relist: z.boolean().optional(),
+  variants: z.array(productVariantSchema).min(1).max(80).optional(),
 });
 
 export const sellerReviewsQuerySchema = z.object({
@@ -118,17 +134,18 @@ export const inventoryListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   q: z.string().optional(),
-  stock: z.enum(['all', 'in', 'low', 'out']).default('all'),
+  stock: z.enum(['all', 'in', 'low', 'out', 'off']).default('all'),
 });
 
 export const adjustInventorySchema = z
   .object({
     quantity: z.number().int().optional(),
     setQuantity: z.number().int().min(0).optional(),
+    isAvailable: z.boolean().optional(),
     reason: z.string().min(2).max(255).optional(),
   })
-  .refine((d) => d.quantity != null || d.setQuantity != null, {
-    message: 'Provide quantity or setQuantity',
+  .refine((d) => d.quantity != null || d.setQuantity != null || d.isAvailable != null, {
+    message: 'Provide quantity, setQuantity, or isAvailable',
   });
 
 export const updateSellerProfileSchema = z.object({
@@ -144,8 +161,8 @@ export const updateSellerProfileSchema = z.object({
   shopLocation: z.string().optional(),
   businessPhone: z.string().optional(),
   whatsappNumber: z.string().optional(),
-  logoUrl: z.string().url().optional(),
-  coverUrl: z.string().url().optional(),
+  logoUrl: z.string().url().nullable().optional(),
+  coverUrl: z.string().url().nullable().optional(),
 });
 
 const metaObject = z.record(z.unknown()).optional();

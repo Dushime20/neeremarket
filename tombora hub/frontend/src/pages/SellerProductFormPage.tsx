@@ -11,22 +11,24 @@ import {
 import { Alert, Button, TableSkeleton } from '@/components/ui';
 import { getErrorMessage } from '@/api/client';
 import { findCategoryPlacement } from '@/utils/category';
+import { StockBuilder } from '@/components/seller/StockBuilder';
 import {
   mergeSpecValues,
   specsForCategory,
-  variantKindForCategory,
-  variantLabels,
   type SpecFieldDef,
 } from '@/utils/productSpecs';
+import {
+  axesFromNames,
+  blankCombo,
+  buildCombos,
+  duplicateAxisName,
+  startingAttributeNames,
+  stockFromVariants,
+  toVariantPayload,
+  type StockAxis,
+  type StockCombo,
+} from '@/utils/stockAttributes';
 import styles from './SellerProductFormPage.module.css';
-
-type VariantRow = {
-  key: string;
-  color: string;
-  size: string;
-  stock: string;
-  sku: string;
-};
 
 type GalleryRow = {
   key: string;
@@ -60,19 +62,6 @@ const STEPS = [
 
 function newKey() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function newRow(): VariantRow {
-  return { key: newKey(), color: '', size: '', stock: '10', sku: '' };
-}
-
-function skuSlug(value: string) {
-  return value
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 24);
 }
 
 function toCm(mm?: number | null) {
@@ -144,7 +133,9 @@ export function SellerProductFormPage() {
   const [tags, setTags] = useState('');
   const [seoTitle, setSeoTitle] = useState('');
   const [seoDescription, setSeoDescription] = useState('');
-  const [variants, setVariants] = useState<VariantRow[]>([newRow()]);
+  const [axes, setAxes] = useState<StockAxis[]>([]);
+  const [combos, setCombos] = useState<StockCombo[]>([blankCombo()]);
+  const [stockCustomized, setStockCustomized] = useState(false);
   const [submitForApproval, setSubmitForApproval] = useState(true);
 
   useEffect(() => {
@@ -181,6 +172,10 @@ export function SellerProductFormPage() {
     setTags((existing.tags || []).join(', '));
     setSeoTitle(existing.seoTitle || '');
     setSeoDescription(existing.seoDescription || '');
+    const stock = stockFromVariants(existing.variants || []);
+    setAxes(stock.axes);
+    setCombos(stock.combos.length ? stock.combos : [blankCombo()]);
+    setStockCustomized(true);
     setHydrated(true);
   }, [existing, hydrated]);
 
@@ -202,8 +197,6 @@ export function SellerProductFormPage() {
     () => specsForCategory(parentSlug, subSlug),
     [parentSlug, subSlug],
   );
-  const variantKind = variantKindForCategory(parentSlug);
-  const vLabels = variantLabels(variantKind);
   const cover = images.find((img) => img.isPrimary) || images[0];
   const coverSrc = cover?.url || cover?.preview;
   const uploadingMedia = images.some((img) => img.uploading) || videos.some((video) => video.uploading);
@@ -214,8 +207,17 @@ export function SellerProductFormPage() {
     setSpecs((current) => mergeSpecValues(current, specDefs));
   }, [templateKey, parentSlug, specDefs]);
 
-  function updateVariant(key: string, patch: Partial<VariantRow>) {
-    setVariants((rows) => rows.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+  useEffect(() => {
+    if (isEdit || stockCustomized || !parentSlug) return;
+    const nextAxes = axesFromNames(startingAttributeNames(parentSlug, subSlug));
+    setAxes(nextAxes);
+    setCombos(nextAxes.length ? buildCombos(nextAxes, []).combos : [blankCombo()]);
+  }, [templateKey, isEdit, stockCustomized, parentSlug, subSlug]);
+
+  function applyStock(nextAxes: StockAxis[], nextCombos: StockCombo[]) {
+    setStockCustomized(true);
+    setAxes(nextAxes);
+    setCombos(nextCombos);
   }
 
   function updateImage(key: string, patch: Partial<GalleryRow>) {
@@ -404,6 +406,23 @@ export function SellerProductFormPage() {
         return `Fill required ${parentCategory?.name || 'category'} specs: ${missing.map((d) => d.name).join(', ')}.`;
       }
     }
+    if (index === 4) return validateStock();
+    return null;
+  }
+
+  function validateStock() {
+    const duplicate = duplicateAxisName(axes);
+    if (duplicate) {
+      return `Attribute "${duplicate}" is listed twice. Keep one attribute and put every option under it.`;
+    }
+    const empty = axes.find((axis) => axis.name.trim() && !axis.values.some((value) => value.trim()));
+    if (empty) {
+      return `Add at least one value for ${empty.name.trim()}, or remove that attribute.`;
+    }
+    if (!combos.length) return 'Add at least one stock line.';
+    if (combos.some((combo) => combo.stock.trim() === '' || Number(combo.stock) < 0 || Number.isNaN(Number(combo.stock)))) {
+      return 'Each stock line needs a quantity of 0 or more.';
+    }
     return null;
   }
 
@@ -419,7 +438,7 @@ export function SellerProductFormPage() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    const blocking = [0, 1, 2, 3].map(validateStep).find(Boolean);
+    const blocking = [0, 1, 2, 3, 4].map(validateStep).find(Boolean);
     if (blocking) {
       setError(blocking);
       return;
@@ -456,34 +475,22 @@ export function SellerProductFormPage() {
     };
 
     try {
+      const stamp = Date.now().toString().slice(-6);
+      const variants = toVariantPayload(axes, combos, {
+        productName: name,
+        price: Number(price),
+        stamp,
+      });
+
       if (isEdit && productId) {
-        await update.mutateAsync({ id: productId, ...common });
+        await update.mutateAsync({ id: productId, ...common, variants });
         navigate(`/seller/products/${productId}`);
         return;
       }
 
-      const stamp = Date.now().toString().slice(-6);
       await create.mutateAsync({
         ...common,
-        variants: variants.map((row, index) => {
-          const color = row.color.trim();
-          const size = row.size.trim();
-          const attributes =
-            color || size
-              ? {
-                  ...(color ? { [vLabels.first.toLowerCase()]: color } : {}),
-                  ...(size ? { [vLabels.second.toLowerCase()]: size } : {}),
-                }
-              : { type: 'Standard' };
-          const label = [color, size].filter(Boolean).join(' / ') || 'Default';
-          return {
-            sku: row.sku.trim() || `${skuSlug(name) || 'SKU'}-${skuSlug(label) || index + 1}-${stamp}`,
-            name: label,
-            attributes,
-            price: Number(price),
-            stock: Number(row.stock) || 0,
-          };
-        }),
+        variants,
       });
       navigate('/seller/products');
     } catch (err) {
@@ -966,73 +973,24 @@ export function SellerProductFormPage() {
           {step === 4 ? (
             <section className={styles.card}>
               <div className={styles.cardHead}>
-                <h2>{vLabels.title}</h2>
-                <p>{vLabels.hint}</p>
+                <h2>Stock by attribute</h2>
+                <p>
+                  Options such as model, size, color, generation, or version each get a quantity and an
+                  available switch. Later changes live in{' '}
+                  <Link to={`/seller/inventory${name ? `?q=${encodeURIComponent(name)}` : ''}`}>
+                    Inventory
+                  </Link>
+                  .
+                </p>
               </div>
               <div className={styles.cardBody}>
-                {isEdit ? (
-                  <p className={styles.hint}>
-                    Stock is managed in{' '}
-                    <Link to={`/seller/inventory?q=${encodeURIComponent(name)}`}>Inventory</Link>.
-                  </p>
-                ) : (
-                  variants.map((row) => (
-                    <div key={row.key} className={styles.variantCard}>
-                      <Field label={vLabels.first}>
-                        <input
-                          value={row.color}
-                          placeholder={vLabels.firstPlaceholder}
-                          onChange={(e) => updateVariant(row.key, { color: e.target.value })}
-                        />
-                      </Field>
-                      <Field label={vLabels.second}>
-                        <input
-                          value={row.size}
-                          placeholder={vLabels.secondPlaceholder}
-                          onChange={(e) => updateVariant(row.key, { size: e.target.value })}
-                        />
-                      </Field>
-                      <Field label="Stock" required>
-                        <input
-                          type="number"
-                          min={0}
-                          value={row.stock}
-                          required
-                          onChange={(e) => updateVariant(row.key, { stock: e.target.value })}
-                        />
-                      </Field>
-                      <Field label="SKU">
-                        <input
-                          value={row.sku}
-                          placeholder="Optional"
-                          onChange={(e) => updateVariant(row.key, { sku: e.target.value })}
-                        />
-                      </Field>
-                      {variants.length > 1 ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setVariants((rows) => rows.filter((item) => item.key !== row.key))}
-                        >
-                          Remove
-                        </Button>
-                      ) : (
-                        <span />
-                      )}
-                    </div>
-                  ))
-                )}
-                {!isEdit ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setVariants((rows) => [...rows, newRow()])}
-                  >
-                    {vLabels.add}
-                  </Button>
-                ) : null}
+                <StockBuilder
+                  parentSlug={parentSlug}
+                  subSlug={subSlug}
+                  axes={axes}
+                  combos={combos}
+                  onChange={applyStock}
+                />
 
                 <div className={styles.grid3}>
                   <Field label="Weight (grams)">
@@ -1115,7 +1073,8 @@ export function SellerProductFormPage() {
           </p>
           <p>
             {images.filter((img) => img.url).length} photo
-            {images.filter((img) => img.url).length === 1 ? '' : 's'} · {specsPayload().length} specs
+            {images.filter((img) => img.url).length === 1 ? '' : 's'} · {specsPayload().length} specs ·{' '}
+            {combos.length} stock {combos.length === 1 ? 'line' : 'lines'}
           </p>
         </aside>
       </div>

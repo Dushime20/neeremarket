@@ -11,9 +11,10 @@ import styles from './workspace.module.css';
 
 const FILTERS = [
   { id: 'all', label: 'All' },
-  { id: 'out', label: 'Out of stock' },
+  { id: 'in', label: 'Available' },
   { id: 'low', label: 'Low' },
-  { id: 'in', label: 'Healthy' },
+  { id: 'out', label: 'Out of stock' },
+  { id: 'off', label: 'Not available' },
 ];
 
 export function SellerInventoryPage() {
@@ -80,7 +81,10 @@ export function SellerInventoryPage() {
         <div>
           <p className={styles.kicker}>Stock</p>
           <h1>Inventory</h1>
-          <p>Track on-hand units per color and size. Buyers cannot order a variant at 0 available.</p>
+          <p>
+            Every option is its own stock line: model, size, color, generation, version, or any other
+            attribute. Quantity 0 is out of stock. Not available hides that option from buyers.
+          </p>
         </div>
         <Link to="/seller/products/new">
           <Button type="button" size="sm">
@@ -92,7 +96,7 @@ export function SellerInventoryPage() {
       {banner ? <Alert tone="success">{banner}</Alert> : null}
       {err ? <Alert tone="error">{err}</Alert> : null}
 
-      <section className={styles.kpis} aria-label="Stock summary">
+      <section className={`${styles.kpis} ${styles.kpisWide}`} aria-label="Stock summary">
         <article className={styles.kpi}>
           <div className={styles.kpiHead}>
             <span className={styles.kpiIcon} data-tone="brand">
@@ -101,14 +105,14 @@ export function SellerInventoryPage() {
             <span>Variants</span>
           </div>
           <strong>{summary?.variants ?? 0}</strong>
-          <em>Color / size SKUs</em>
+          <em>Attribute combinations</em>
         </article>
         <article className={styles.kpi}>
           <div className={styles.kpiHead}>
             <span className={styles.kpiIcon} data-tone="ok">
               <MetricIcon path={ICONS.bag} />
             </span>
-            <span>Healthy</span>
+            <span>Available</span>
           </div>
           <strong>{summary?.inStock ?? 0}</strong>
           <em>Above low-stock level</em>
@@ -133,6 +137,16 @@ export function SellerInventoryPage() {
           <strong>{summary?.outOfStock ?? 0}</strong>
           <em>Not orderable</em>
         </article>
+        <article className={styles.kpi}>
+          <div className={styles.kpiHead}>
+            <span className={styles.kpiIcon} data-tone="accent">
+              <MetricIcon path={ICONS.box} />
+            </span>
+            <span>Not available</span>
+          </div>
+          <strong>{summary?.notOffered ?? 0}</strong>
+          <em>Hidden from buyers</em>
+        </article>
       </section>
 
       <section className={styles.panel}>
@@ -154,7 +168,7 @@ export function SellerInventoryPage() {
               label="Search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Product, SKU, color, size"
+              placeholder="Product, SKU, model, size, color"
             />
           </form>
         </div>
@@ -172,8 +186,8 @@ export function SellerInventoryPage() {
           <div className={styles.panelBody}>
             <EmptyState
               compact
-              title="No variants in this view"
-              description="Create listings with color and size so you can track stock per SKU."
+              title="No stock lines in this view"
+              description="Add a product and set attributes such as model, size, color, or generation. Each combination gets its own stock."
               actionLabel="Add product"
               onAction={() => navigate('/seller/products/new')}
             />
@@ -186,7 +200,7 @@ export function SellerInventoryPage() {
               <thead>
                 <tr>
                   <th>Product</th>
-                  <th>Variant</th>
+                  <th>Attributes</th>
                   <th>On hand</th>
                   <th>Reserved</th>
                   <th>Available</th>
@@ -225,7 +239,7 @@ export function SellerInventoryPage() {
                   Previous
                 </Button>
                 <span className={styles.muted}>
-                  Page {data.pagination.page} of {data.pagination.totalPages} Â· {data.pagination.total} variants
+                  Page {data.pagination.page} of {data.pagination.totalPages} · {data.pagination.total} stock lines
                 </span>
                 <Button
                   type="button"
@@ -262,15 +276,27 @@ function InventoryRowEditor({
     setQty(String(row.quantity));
   }, [row.quantity]);
 
-  const status = row.isOut ? 'OUT_OF_STOCK' : row.isLow ? 'LOW_STOCK' : 'IN_STOCK';
+  const status = !row.isActive
+    ? 'NOT_AVAILABLE'
+    : row.isOut
+      ? 'OUT_OF_STOCK'
+      : row.isLow
+        ? 'LOW_STOCK'
+        : 'IN_STOCK';
+  const attributeEntries = Object.entries(row.attributes).filter(
+    ([key, value]) => !(key.toLowerCase() === 'type' && String(value).toLowerCase() === 'standard'),
+  );
 
-  async function save(setQuantity: number, reason?: string) {
+  async function save(setQuantity?: number, isAvailable?: boolean, reason?: string) {
     try {
-      await adjust.mutateAsync({ variantId: row.id, setQuantity, reason });
+      await adjust.mutateAsync({ variantId: row.id, setQuantity, isAvailable, reason });
+      const label = variantLabel(row.name, row.attributes);
       onSaved(
-        setQuantity <= row.reserved
-          ? `${row.product.name} Â· ${variantLabel(row.name, row.attributes)} is out of stock`
-          : `Updated ${row.product.name} Â· ${variantLabel(row.name, row.attributes)}`,
+        isAvailable === false
+          ? `${row.product.name} · ${label} is not available`
+          : isAvailable === true
+            ? `${row.product.name} · ${label} is available`
+            : `Updated ${row.product.name} · ${label}`,
       );
     } catch (ex) {
       onError(getErrorMessage(ex));
@@ -294,11 +320,17 @@ function InventoryRowEditor({
       </td>
       <td>
         <strong>{variantLabel(row.name, row.attributes)}</strong>
-        <small className={styles.muted} style={{ display: 'block' }}>
-          {Object.entries(row.attributes)
-            .map(([key, value]) => `${key}: ${value}`)
-            .join(' Â· ') || 'Standard'}
-        </small>
+        <div className={styles.attrList}>
+          {attributeEntries.length ? (
+            attributeEntries.map(([key, value]) => (
+              <span key={key} className={styles.attrChip}>
+                <em>{key}</em> {value}
+              </span>
+            ))
+          ) : (
+            <span className={styles.attrChip}>Standard</span>
+          )}
+        </div>
       </td>
       <td className={styles.num}>{row.quantity}</td>
       <td className={styles.num}>{row.reserved}</td>
@@ -327,13 +359,34 @@ function InventoryRowEditor({
           <Button type="submit" size="sm" variant="secondary" disabled={adjust.isPending}>
             Save
           </Button>
+          {row.isActive ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={adjust.isPending}
+              onClick={() => void save(undefined, false, 'Marked not available')}
+            >
+              Not available
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={adjust.isPending}
+              onClick={() => void save(undefined, true, 'Marked available')}
+            >
+              Mark available
+            </Button>
+          )}
           {row.available > 0 ? (
             <Button
               type="button"
               size="sm"
               variant="ghost"
               disabled={adjust.isPending}
-              onClick={() => void save(row.reserved, 'Marked out of stock')}
+              onClick={() => void save(row.reserved, undefined, 'Marked out of stock')}
             >
               Mark out
             </Button>

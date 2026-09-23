@@ -31,7 +31,7 @@ export function SiteFooter() {
         <div>
           <p className={styles.footerTitle}>Company</p>
           <div className={styles.footerLinks}>
-            <Link to="/why-tombora">Why {APP_NAME}</Link>
+            <Link to="/why-neeremarket">Why {APP_NAME}</Link>
             <Link to="/about">About</Link>
             <Link to="/help">Help</Link>
             <Link to="/returns">Returns</Link>

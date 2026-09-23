@@ -1,0 +1,186 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.lead,
+.muted,
+.axis p,
+.addAttr p,
+.linesHead p {
+  margin: 0;
+  color: var(--color-ink-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.notice {
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 0.84rem;
+}
+
+.axis,
+.addAttr {
+  border: 1px solid #e7eef3;
+  border-radius: 14px;
+  padding: 0.8rem;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.axisHead,
+.linesHead,
+.line,
+.bulk,
+.addValue {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.axisHead,
+.linesHead {
+  justify-content: space-between;
+}
+
+.axisName,
+.qty,
+.sku {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-ink-muted);
+}
+
+.axisName input,
+.addValue input,
+.qty input,
+.sku input,
+.bulk input {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.45rem 0.55rem;
+  font: inherit;
+  font-weight: 500;
+  color: var(--color-ink);
+  background: #fff;
+}
+
+.axisName input {
+  min-width: 10rem;
+}
+
+.values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.value,
+.valueOn {
+  border: 1px solid #d5dde5;
+  background: #fff;
+  color: var(--color-ink);
+  border-radius: 999px;
+  padding: 0.28rem 0.65rem;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.valueOn {
+  background: #e7f4ef;
+  border-color: #b7ddd0;
+  font-weight: 700;
+}
+
+.addValue {
+  align-items: stretch;
+}
+
+.addValue input {
+  flex: 1;
+  min-width: 12rem;
+}
+
+.more summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-brand);
+}
+
+.linesHead {
+  align-items: flex-end;
+}
+
+.linesHead strong {
+  display: block;
+}
+
+.bulk input {
+  width: 4.5rem;
+}
+
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  max-height: 440px;
+  overflow: auto;
+}
+
+.line {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) auto 6.2rem minmax(8rem, 1fr);
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid #e7eef3;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.line[data-off='true'] {
+  background: #f8fafc;
+}
+
+.line strong,
+.line small {
+  display: block;
+}
+
+.line small {
+  color: var(--color-ink-muted);
+  font-size: 0.75rem;
+}
+
+.avail {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.qty input,
+.sku input {
+  width: 100%;
+}
+
+@media (max-width: 860px) {
+  .line {
+    grid-template-columns: 1fr;
+  }
+}

@@ -3,9 +3,23 @@ import { prisma } from '../shared/prisma';
 import { Errors } from '../shared/errors';
 import type { z } from 'zod';
 import type { updateSellerProfileSchema } from '../validators/catalog.validator';
+import { uniqueSlug } from '../shared/serialize';
 import { getSellerProfileByUserId } from './catalog.service';
 
 type UpdateSellerInput = z.infer<typeof updateSellerProfileSchema>;
+
+async function uniqueStoreSlug(base: string, excludeStoreId?: string) {
+  return uniqueSlug(base, async (candidate) => {
+    const found = await prisma.store.findFirst({
+      where: {
+        slug: candidate,
+        ...(excludeStoreId ? { NOT: { id: excludeStoreId } } : {}),
+      },
+      select: { id: true },
+    });
+    return !!found;
+  });
+}
 
 export async function listStores(page = 1, limit = 24, district?: string) {
   const where = {
@@ -92,8 +106,82 @@ export async function getStoreBySlug(slug: string) {
 
   if (!store) throw Errors.notFound('Store');
 
+  const categoryRows = await prisma.product.findMany({
+    where: { storeId: store.id, status: 'ACTIVE', deletedAt: null },
+    distinct: ['categoryId'],
+    select: {
+      category: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          parentId: true,
+          sortOrder: true,
+          parent: {
+            select: { id: true, name: true, slug: true, sortOrder: true },
+          },
+        },
+      },
+    },
+  });
+
+  const parents = new Map<
+    string,
+    {
+      id: string;
+      name: string;
+      slug: string;
+      sortOrder: number;
+      children: Array<{ id: string; name: string; slug: string; sortOrder: number }>;
+    }
+  >();
+
+  for (const row of categoryRows) {
+    const category = row.category;
+    if (category.parent) {
+      const parent = parents.get(category.parent.id) || {
+        id: category.parent.id,
+        name: category.parent.name,
+        slug: category.parent.slug,
+        sortOrder: category.parent.sortOrder,
+        children: [],
+      };
+      if (!parent.children.some((child) => child.id === category.id)) {
+        parent.children.push({
+          id: category.id,
+          name: category.name,
+          slug: category.slug,
+          sortOrder: category.sortOrder,
+        });
+      }
+      parents.set(category.parent.id, parent);
+    } else {
+      if (!parents.has(category.id)) {
+        parents.set(category.id, {
+          id: category.id,
+          name: category.name,
+          slug: category.slug,
+          sortOrder: category.sortOrder,
+          children: [],
+        });
+      }
+    }
+  }
+
+  const categories = [...parents.values()]
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
+    .map((parent) => ({
+      id: parent.id,
+      name: parent.name,
+      slug: parent.slug,
+      children: parent.children
+        .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
+        .map(({ id, name, slug }) => ({ id, name, slug })),
+    }));
+
   return {
     ...store,
+    categories,
     products: store.products.map((p) => ({
       id: p.id,
       name: p.name,
@@ -121,14 +209,24 @@ export async function getStoreBySlug(slug: string) {
 
 export async function updateMySellerProfile(userId: string, input: UpdateSellerInput) {
   const seller = await getSellerProfileByUserId(userId);
+  if (!seller.store) throw Errors.notFound('Store');
+
+  const nextName = input.businessName?.trim();
+  const storeUpdate =
+    nextName && nextName !== seller.store.name
+      ? {
+          name: nextName,
+          slug: await uniqueStoreSlug(nextName, seller.store.id),
+        }
+      : nextName
+        ? { name: nextName }
+        : undefined;
 
   const updated = await prisma.sellerProfile.update({
     where: { id: seller.id },
     data: {
       ...input,
-      store: input.businessName
-        ? { update: { name: input.businessName } }
-        : undefined,
+      store: storeUpdate ? { update: storeUpdate } : undefined,
     },
     include: { store: true },
   });

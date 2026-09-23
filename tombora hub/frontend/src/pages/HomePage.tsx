@@ -62,12 +62,7 @@ export function HomePage() {
     [categoryList, catsPerPage],
   );
   const catPageCount = catPages.length;
-  const offers = useMemo(
-    () => items.filter((p) => discountPercent(p.price, p.discountPrice)).slice(0, 4),
-    [items],
-  );
-  const promoProducts = (offers.length ? offers : items).slice(0, 4);
-  const slidesCount = 4;
+  const slidesCount = 3;
 
   useEffect(() => {
     function syncPageSize() {
@@ -221,26 +216,6 @@ export function HomePage() {
                   </Link>
                 </div>
               </article>
-
-              <article className={`${styles.slide} ${styles.slidePromo}`}>
-                <div className={styles.promoGrid}>
-                  {(promoProducts.length ? promoProducts : items.slice(0, 4)).map((product) => (
-                    <Link key={product.id} to={`/products/${product.slug}`} className={styles.promoCard}>
-                      <img src={productImage(product)} alt="" />
-                      <div>
-                        <p>{product.name}</p>
-                        <PriceDisplay price={product.price} discountPrice={product.discountPrice} />
-                      </div>
-                    </Link>
-                  ))}
-                  {!promoProducts.length && !items.length ? (
-                    <div className={styles.promoEmpty}>
-                      <h2>Promotion products</h2>
-                      <p>Featured deals will appear here as sellers list offers.</p>
-                    </div>
-                  ) : null}
-                </div>
-              </article>
             </div>
 
             <button
@@ -261,7 +236,7 @@ export function HomePage() {
             </button>
 
             <div className={styles.dots} role="tablist" aria-label="Carousel slides">
-              {['Home', 'Advertise', 'Offers', 'Promotions'].map((label, index) => (
+              {['Home', 'Advertise', 'Offers'].map((label, index) => (
                 <button
                   key={label}
                   type="button"

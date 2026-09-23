@@ -2,7 +2,7 @@ export type StatusTone = 'brand' | 'accent' | 'muted' | 'success' | 'warning' | 
 
 const SUCCESS = /ACTIVE|VERIFIED|COMPLETED|DELIVERED|PAID|PUBLISHED|APPROVED|SUCCESS|IN_STOCK/;
 const WARNING = /PENDING|REVIEW|REQUESTED|DRAFT|HOLD|PROCESSING|SHIPPED|READY|LOW_STOCK/;
-const DANGER = /REJECT|SUSPEND|CANCEL|FAIL|OUT_OF_STOCK|BLOCK|ARCHIVED/;
+const DANGER = /REJECT|SUSPEND|CANCEL|FAIL|OUT_OF_STOCK|NOT_AVAILABLE|BLOCK|ARCHIVED/;
 
 export function statusTone(status?: string | null): StatusTone {
   const value = (status || '').toUpperCase();

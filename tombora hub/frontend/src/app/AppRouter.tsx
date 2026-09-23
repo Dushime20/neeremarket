@@ -37,10 +37,14 @@ import { PlaceholderPage } from '@/pages/PlaceholderPage';
 import { WhyTomboraPage } from '@/pages/WhyTomboraPage';
 import { HowItWorksPage } from '@/pages/HowItWorksPage';
 import { SellPage } from '@/pages/SellPage';
+import { HelpPage } from '@/pages/HelpPage';
+import { ReturnsPage } from '@/pages/ReturnsPage';
+import { ContactPage } from '@/pages/ContactPage';
 import { SourcingRequestPage } from '@/pages/SourcingRequestPage';
 import { OnlineServicePage } from '@/pages/OnlineServicePage';
 import { MobileAppPage } from '@/pages/MobileAppPage';
 import { ImageSearchPage } from '@/pages/ImageSearchPage';
+import { NewArrivalsPage } from '@/pages/NewArrivalsPage';
 
 export function AppRouter() {
   return (
@@ -84,7 +88,7 @@ export function AppRouter() {
           <Route path="stores/:slug" element={<StorefrontPage />} />
           <Route path="search" element={<SearchPage />} />
           <Route path="deals" element={<PlaceholderPage title="Deals" />} />
-          <Route path="new-arrivals" element={<PlaceholderPage title="New arrivals" />} />
+          <Route path="new-arrivals" element={<NewArrivalsPage />} />
           <Route path="best-sellers" element={<PlaceholderPage title="Best sellers" />} />
           <Route path="wishlist" element={<WishlistPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
@@ -95,14 +99,15 @@ export function AppRouter() {
           <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/:id" element={<OrderDetailPage />} />
           <Route path="account" element={<AccountPage />} />
-          <Route path="why-tombora" element={<WhyTomboraPage />} />
+          <Route path="why-neeremarket" element={<WhyTomboraPage />} />
+          <Route path="why-tombora" element={<Navigate to="/why-neeremarket" replace />} />
           <Route path="how-it-works" element={<HowItWorksPage />} />
-          <Route path="help" element={<PlaceholderPage title="Help" />} />
+          <Route path="help" element={<HelpPage />} />
           <Route path="about" element={<WhyTomboraPage />} />
-          <Route path="contact" element={<PlaceholderPage title="Contact" />} />
+          <Route path="contact" element={<ContactPage />} />
           <Route path="terms" element={<PlaceholderPage title="Terms" />} />
           <Route path="privacy" element={<PlaceholderPage title="Privacy" />} />
-          <Route path="returns" element={<PlaceholderPage title="Returns" />} />
+          <Route path="returns" element={<ReturnsPage />} />
           <Route path="sell" element={<SellPage />} />
           <Route path="sourcing-request" element={<SourcingRequestPage />} />
           <Route path="online-service" element={<OnlineServicePage />} />

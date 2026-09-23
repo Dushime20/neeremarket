@@ -84,6 +84,20 @@ export async function paymentWebhook(req: Request, res: Response) {
   return success(res, result, 'Webhook processed');
 }
 
+export async function fdiPaymentWebhook(req: Request, res: Response) {
+  const result = await checkoutService.confirmPaymentFromWebhook('fdi', req.headers, req.body);
+  return success(res, result, 'FDI webhook processed');
+}
+
+export async function verifyPayment(req: Request, res: Response) {
+  if (!req.user) throw Errors.unauthorized();
+  const result = await checkoutService.verifyCustomerPayment(
+    req.user.id,
+    String(req.params.paymentId),
+  );
+  return success(res, result);
+}
+
 export async function listSellerOrders(req: Request, res: Response) {
   if (!req.user) throw Errors.unauthorized();
   const status = req.query.status ? String(req.query.status) : undefined;

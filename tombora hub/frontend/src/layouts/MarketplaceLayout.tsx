@@ -4,7 +4,6 @@ import { useCart, useCategories, useLogout, useMe, useNotifications, useWishlist
 import { CategoryMegaMenu } from '@/components/navigation/CategoryMegaMenu';
 import { MobileBottomNav } from '@/components/navigation/MobileBottomNav';
 import { SiteFooter } from '@/components/layout/SiteFooter';
-import { Button } from '@/components/ui';
 import { APP_LOGO_SRC, APP_NAME } from '@/config/brand';
 import { hasSellerAccount, isAdminRole } from '@/utils/auth';
 import styles from './MarketplaceLayout.module.css';
@@ -201,9 +200,9 @@ export function MarketplaceLayout() {
                 ) : null}
                 {hasSellerAccount(user.roles) ? <NavLink to="/seller">Seller</NavLink> : null}
                 {isAdminRole(user.roles) ? <NavLink to="/admin">Admin</NavLink> : null}
-                <Button variant="ghost" type="button" size="sm" className={styles.logout} onClick={() => logout.mutate()}>
+                <button type="button" className={styles.logout} onClick={() => logout.mutate()}>
                   Log out
-                </Button>
+                </button>
               </>
             ) : (
               <Link to="/login" className={styles.authJoin} aria-label="Sign In or Join">
@@ -227,7 +226,7 @@ export function MarketplaceLayout() {
           <nav className={`container ${styles.cats}`} aria-label="Marketplace">
             <CategoryMegaMenu categories={categories || []} />
             <span className={styles.navSplit} aria-hidden="true" />
-            <NavLink to="/why-tombora">Why {APP_NAME}</NavLink>
+            <NavLink to="/why-neeremarket">Why {APP_NAME}</NavLink>
             <NavLink to="/how-it-works">How it works</NavLink>
             <NavLink to="/sell">For sellers</NavLink>
             <NavLink to="/stores">Stores</NavLink>

@@ -269,58 +269,6 @@
   color: #fff !important;
 }
 
-.slidePromo {
-  background: #fff;
-  color: var(--color-ink);
-  padding: 0.85rem;
-}
-
-.promoGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.7rem;
-  height: 100%;
-}
-
-.promoCard {
-  display: grid;
-  grid-template-columns: 84px 1fr;
-  gap: 0.7rem;
-  align-items: center;
-  padding: 0.55rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: #f7fafc;
-}
-
-.promoCard img {
-  position: static;
-  width: 84px;
-  height: 84px;
-  object-fit: cover;
-  border-radius: 8px;
-}
-
-.promoCard p {
-  margin: 0 0 0.2rem;
-  font-size: 14px;
-  font-weight: 500;
-  color: #222;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.promoEmpty {
-  grid-column: 1 / -1;
-  display: grid;
-  place-content: center;
-  text-align: center;
-  color: var(--color-ink-muted);
-}
-
 .arrow {
   position: absolute;
   top: 50%;
@@ -812,10 +760,6 @@
     grid-column: 1 / -1;
     max-height: 320px;
     height: auto;
-  }
-
-  .promoGrid {
-    grid-template-columns: 1fr;
   }
 }
 

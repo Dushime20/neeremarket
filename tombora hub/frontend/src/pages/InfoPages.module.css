@@ -3,10 +3,10 @@
 }
 
 .hero {
-  background: linear-gradient(160deg, var(--color-brand-deep), var(--color-brand) 72%);
+  background: linear-gradient(160deg, #1a2332, #2a3a4d 70%);
   color: #fff;
-  padding: 2.6rem 0 2.4rem;
-  margin: -1.5rem 0 2rem;
+  padding: 2.2rem 0 2rem;
+  margin: -1.5rem 0 1.75rem;
 }
 
 .hero h1 {
@@ -32,7 +32,7 @@
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
-  color: #f0d9a8;
+  color: #f0b27a;
 }
 
 .grid {
@@ -113,14 +113,170 @@
   border-radius: var(--radius);
 }
 
-.panel h2 {
-  font-size: 18px;
+.panel p {
+  margin: 0.45rem 0 0;
+  color: var(--color-ink-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.card:hover {
+  border-color: #f0c7a8;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(240px, 0.85fr);
+  gap: 1.15rem;
+  align-items: start;
+  margin-top: 1.5rem;
+}
+
+.split > .panel {
+  margin-top: 0;
+}
+
+.faq {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.faq details {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem 0.95rem;
+}
+
+.faq summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  list-style: none;
+}
+
+.faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq summary::after {
+  content: '+';
+  float: right;
+  color: var(--color-brand);
+  font-weight: 700;
+}
+
+.faq details[open] summary::after {
+  content: '–';
+}
+
+.faq details p,
+.faq details ul {
+  margin: 0.65rem 0 0;
+  color: var(--color-ink-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.faq details a {
+  color: var(--color-brand);
+  font-weight: 600;
+}
+
+.subHead {
+  margin-top: 1.25rem;
+}
+
+.faq details ul,
+.policyList {
+  padding-left: 1.15rem;
+}
+
+.policyList {
+  margin: 0.5rem 0 0;
+  color: var(--color-ink-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.formStack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.formStack textarea {
+  width: 100%;
+  min-height: 7.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.7rem 0.8rem;
+  font: inherit;
+  resize: vertical;
+  background: #fff;
+}
+
+.formStack textarea:focus {
+  outline: none;
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px rgba(232, 93, 4, 0.15);
+}
+
+.areaLabel select {
+  height: 2.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0 0.7rem;
+  background: #fff;
+  font: inherit;
+}
+
+.areaLabel select:focus {
+  outline: none;
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px rgba(232, 93, 4, 0.15);
+}
+
+.contactList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.contactList li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.contactList span {
+  font-size: 12px;
+  color: var(--color-ink-muted);
+}
+
+.contactList strong,
+.contactList a {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.contactList a:hover {
+  color: var(--color-brand);
 }
 
 @media (max-width: 860px) {
   .grid,
   .steps {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .split {
+    grid-template-columns: 1fr;
   }
 }
 

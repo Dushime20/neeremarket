@@ -6,6 +6,7 @@ import { Errors } from '../shared/errors';
 import { prisma } from '../shared/prisma';
 import type { AuthUser } from '../shared/middleware';
 import type { LoginInput, RegisterInput, GoogleAuthInput } from '../validators/auth.validator';
+import { uniqueSlug } from '../shared/serialize';
 
 type TokenPayload = { sub: string; type: 'access' | 'refresh' };
 type RequestMeta = { ip?: string; userAgent?: string };
@@ -116,26 +117,22 @@ export async function revokeRefreshToken(token: string) {
   });
 }
 
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
-    .slice(0, 40);
-}
-
 async function ensureSellerProfile(userId: string, fullName: string) {
   const existing = await prisma.sellerProfile.findUnique({ where: { userId } });
   if (existing) return;
-  const slugBase = slugify(fullName);
+  const storeName = `${fullName}'s Store`;
+  const slug = await uniqueSlug(storeName, async (candidate) => {
+    const found = await prisma.store.findUnique({ where: { slug: candidate } });
+    return !!found;
+  });
   await prisma.sellerProfile.create({
     data: {
       userId,
-      businessName: `${fullName}'s Store`,
+      businessName: storeName,
       store: {
         create: {
-          name: `${fullName}'s Store`,
-          slug: `${slugBase || 'store'}-${userId.slice(0, 8)}`,
+          name: storeName,
+          slug,
         },
       },
       wallet: { create: {} },
