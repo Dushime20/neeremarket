@@ -3,8 +3,10 @@
   align-items: center;
   border-radius: 999px;
   padding: 0.15rem 0.55rem;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--text-3xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
 }
 
 .brand {

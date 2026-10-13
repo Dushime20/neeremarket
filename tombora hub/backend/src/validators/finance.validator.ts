@@ -2,8 +2,7 @@ import { z } from 'zod';
 
 export const payoutRequestSchema = z.object({
   amount: z.number().int().positive(),
-  method: z.enum(['MTN_MOMO', 'AIRTEL_MONEY', 'BANK']),
-  destination: z.record(z.unknown()),
+  destination: z.object({ phone: z.string().min(9).max(16) }),
 });
 
 export const payoutReviewSchema = z.object({
@@ -12,7 +11,7 @@ export const payoutReviewSchema = z.object({
 });
 
 export const sellerOrderStatusSchema = z.object({
-  status: z.enum(['PROCESSING', 'READY_FOR_SHIPMENT', 'SHIPPED', 'DELIVERED']),
+  status: z.enum(['PROCESSING', 'READY_FOR_SHIPMENT', 'SHIPPED', 'OUT_FOR_DELIVERY']),
 });
 
 export const createReturnSchema = z.object({

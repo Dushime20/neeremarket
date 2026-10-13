@@ -6,13 +6,13 @@
 }
 
 .sm strong {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
 }
 
 .lg strong {
-  font-size: 24px;
-  font-weight: 700;
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
 }
 
 .old {
@@ -24,5 +24,5 @@
 .off {
   color: var(--color-brand);
   font-size: 0.8em;
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
 }

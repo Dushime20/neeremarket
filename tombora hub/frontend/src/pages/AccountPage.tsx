@@ -170,6 +170,23 @@ export function AccountPage() {
             <em>Chat with sellers about products</em>
           </span>
         </Link>
+        <Link to="/disputes" className={styles.shortcut}>
+          <span className={styles.shortcutIcon} aria-hidden>
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+          <span>
+            <strong>Disputes</strong>
+            <em>Report late or problem deliveries</em>
+          </span>
+        </Link>
         <Link to="/notifications" className={styles.shortcut}>
           <span className={styles.shortcutIcon} aria-hidden>
             <svg viewBox="0 0 24 24">

@@ -718,17 +718,20 @@ export function useOrder(id: string) {
   });
 }
 
-export function useMockPay() {
+export function useConfirmDelivery(scope: 'customer' | 'admin' = 'customer') {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (orderId: string) => {
-      const { data } = await api.post(`/orders/${orderId}/mock-pay`);
+    mutationFn: async ({ orderId, sellerOrderId }: { orderId: string; sellerOrderId: string }) => {
+      const base = scope === 'admin' ? '/admin/orders' : '/orders';
+      const { data } = await api.post(
+        `${base}/${orderId}/seller-orders/${sellerOrderId}/confirm-delivery`,
+      );
       return data.data;
     },
-    onSuccess: (_data, orderId) => {
+    onSuccess: (_data, { orderId }) => {
       void qc.invalidateQueries({ queryKey: ['orders'] });
       void qc.invalidateQueries({ queryKey: ['orders', orderId] });
-      void qc.invalidateQueries({ queryKey: ['cart'] });
+      void qc.invalidateQueries({ queryKey: ['admin', 'orders'] });
     },
   });
 }
@@ -774,11 +777,7 @@ export function useSellerFinance() {
 export function useRequestPayout() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: {
-      amount: number;
-      method: 'MTN_MOMO' | 'AIRTEL_MONEY' | 'BANK';
-      destination: Record<string, unknown>;
-    }) => {
+    mutationFn: async (body: { amount: number; destination: { phone: string } }) => {
       const { data } = await api.post('/sellers/me/payouts', body);
       return data.data;
     },
@@ -818,7 +817,7 @@ export function useUpdateSellerOrderStatus() {
       status,
     }: {
       id: string;
-      status: 'PROCESSING' | 'READY_FOR_SHIPMENT' | 'SHIPPED' | 'DELIVERED';
+      status: 'PROCESSING' | 'READY_FOR_SHIPMENT' | 'SHIPPED' | 'OUT_FOR_DELIVERY';
     }) => {
       const { data } = await api.patch(`/sellers/me/orders/${id}/status`, { status });
       return data.data;
@@ -964,13 +963,42 @@ export function useMessageThreads(scopeAll = false, enabled = true) {
         ApiSuccess<{
           items: Array<{
             id: string;
+            sellerId: string;
             sellerName?: string;
+            sellerLogoUrl: string | null;
             customerName?: string;
             updatedAt: string;
-            lastMessage: { body: string; createdAt: string } | null;
+            lastMessage: { body: string; createdAt: string; senderId: string } | null;
+            unreadCount: number;
           }>;
         }>
       >('/messages/threads', { params: scopeAll ? { scope: 'all' } : undefined });
+      return data.data;
+    },
+  });
+}
+
+export type MessageableSeller = {
+  sellerId: string;
+  storeName: string;
+  storeSlug: string;
+  businessName: string;
+  logoUrl: string | null;
+  verified: boolean;
+  location: string | null;
+  threadId: string | null;
+};
+
+export function useMessageableSellers(q = '', enabled = true) {
+  return useQuery({
+    queryKey: ['messages', 'sellers', q],
+    enabled,
+    placeholderData: (prev) => prev,
+    queryFn: async () => {
+      const { data } = await api.get<ApiSuccess<{ items: MessageableSeller[] }>>(
+        '/messages/sellers',
+        { params: q ? { q } : undefined },
+      );
       return data.data;
     },
   });
@@ -1034,6 +1062,8 @@ export function useAdminDashboard() {
               pendingProducts: number;
               openPayouts: number;
               openReturns: number;
+              openDisputes: number;
+              escalatedDisputes: number;
             };
             gmv: string;
             currency: string;
@@ -1149,6 +1179,177 @@ export function useModerateProduct() {
   });
 }
 
+export type AdminUserDetail = {
+  id: string;
+  email: string | null;
+  phone: string | null;
+  fullName: string;
+  status: string;
+  avatarUrl: string | null;
+  emailVerifiedAt: string | null;
+  phoneVerifiedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  roles: string[];
+  sellerProfile?: {
+    id: string;
+    businessName: string;
+    verificationStatus: string;
+    store: { id: string; name: string; slug: string } | null;
+  } | null;
+  addresses?: Array<{
+    id: string;
+    fullName?: string;
+    recipientName?: string;
+    phone: string;
+    province: string;
+    district: string;
+    sector?: string | null;
+    street?: string | null;
+    streetAddress?: string | null;
+    isDefault: boolean;
+  }>;
+  loginHistory?: Array<{
+    id: string;
+    ip?: string | null;
+    userAgent?: string | null;
+    success: boolean;
+    createdAt: string;
+  }>;
+  _count?: {
+    orders: number;
+    reviews: number;
+    disputes: number;
+  };
+};
+
+export function useAdminUser(userId?: string) {
+  return useQuery({
+    queryKey: ['admin', 'user', userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data } = await api.get<ApiSuccess<{ user: AdminUserDetail }>>(`/admin/users/${userId}`);
+      return data.data.user;
+    },
+  });
+}
+
+export type AdminSellerDetail = {
+  id: string;
+  userId: string;
+  businessName: string;
+  description: string | null;
+  businessCategory: string | null;
+  province: string | null;
+  district: string | null;
+  sector: string | null;
+  cell: string | null;
+  village: string | null;
+  marketLocation: string | null;
+  shopLocation: string | null;
+  businessPhone: string | null;
+  whatsappNumber: string | null;
+  logoUrl: string | null;
+  coverUrl: string | null;
+  verificationStatus: string;
+  ratingAvg: string | number;
+  ratingCount: number;
+  totalOrders: number;
+  createdAt: string;
+  updatedAt: string;
+  user: {
+    id: string;
+    fullName: string;
+    email: string | null;
+    phone: string | null;
+    status: string;
+    createdAt: string;
+  };
+  store: {
+    id: string;
+    name: string;
+    slug: string;
+    headline: string | null;
+    description: string | null;
+  } | null;
+  wallet?: {
+    availableBalance: string;
+    pendingBalance: string;
+    currency: string;
+  } | null;
+  verifications?: Array<{
+    id: string;
+    status: string;
+    nationalIdMeta: unknown;
+    businessRegMeta: unknown;
+    taxMeta: unknown;
+    payoutMeta: unknown;
+    reviewNotes: string | null;
+    createdAt: string;
+  }>;
+  _count?: {
+    sellerOrders: number;
+    reviews: number;
+    payoutRequests: number;
+    disputes: number;
+  };
+};
+
+export function useAdminSeller(sellerId?: string) {
+  return useQuery({
+    queryKey: ['admin', 'seller', sellerId],
+    enabled: !!sellerId,
+    queryFn: async () => {
+      const { data } = await api.get<ApiSuccess<{ seller: AdminSellerDetail }>>(`/admin/sellers/${sellerId}`);
+      return data.data.seller;
+    },
+  });
+}
+
+export type AdminProductDetail = {
+  id: string;
+  name: string;
+  slug: string;
+  status: string;
+  price: string;
+  discountPrice: string | null;
+  currency: string;
+  description: string | null;
+  shortDescription: string | null;
+  condition: string | null;
+  createdAt: string;
+  updatedAt: string;
+  category?: { id: string; name: string; slug: string } | null;
+  store: {
+    id: string;
+    name: string;
+    slug: string;
+    seller: { id: string; businessName: string; verificationStatus: string };
+  };
+  images: Array<{ id: string; url: string; altText: string | null; isPrimary: boolean }>;
+  videos: Array<{ id: string; url: string }>;
+  specifications: Array<{ id: string; name: string; value: string }>;
+  variants: Array<{
+    id: string;
+    name: string | null;
+    sku: string | null;
+    price: string | null;
+    attributes: Record<string, string>;
+    inventory?: { available: number; quantity: number; reserved: number } | null;
+  }>;
+};
+
+export function useAdminProduct(productId?: string) {
+  return useQuery({
+    queryKey: ['admin', 'product', productId],
+    enabled: !!productId,
+    queryFn: async () => {
+      const { data } = await api.get<ApiSuccess<{ product: AdminProductDetail }>>(`/admin/products/${productId}`);
+      return data.data.product;
+    },
+  });
+}
+
 export function useAdminOrders() {
   return useQuery({
     queryKey: ['admin', 'orders'],
@@ -1165,6 +1366,78 @@ export function useAdminOrders() {
         }>
       >('/admin/orders');
       return data.data;
+    },
+  });
+}
+
+export type AdminOrderDetail = {
+  id: string;
+  orderNumber: string;
+  status: string;
+  currency: string;
+  subtotal: string;
+  deliveryFee: string;
+  discountTotal: string;
+  platformCharges: string;
+  total: string;
+  createdAt: string;
+  paidAt: string | null;
+  notes: string | null;
+  couponCode: string | null;
+  customer: { id: string; fullName: string; email: string | null; phone: string | null };
+  address: {
+    fullName: string;
+    phone: string;
+    province: string;
+    district: string;
+    sector?: string | null;
+    cell?: string | null;
+    village?: string | null;
+    street?: string | null;
+    landmark?: string | null;
+    instructions?: string | null;
+  } | null;
+  payments: Array<{
+    id: string;
+    status: string;
+    method: string;
+    provider: string;
+    amount: string;
+    providerRef: string | null;
+  }>;
+  sellerOrders: Array<{
+    id: string;
+    sellerOrderNumber: string;
+    sellerName: string;
+    status: string;
+    subtotal: string;
+    deliveryFee: string;
+    items: Array<{
+      id: string;
+      productName: string;
+      variantName: string | null;
+      sku: string;
+      quantity: number;
+      unitPrice: string;
+      lineTotal: string;
+    }>;
+  }>;
+  statusHistory: Array<{
+    id: string;
+    fromStatus: string | null;
+    toStatus: string;
+    reason: string | null;
+    createdAt: string;
+  }>;
+};
+
+export function useAdminOrder(id: string) {
+  return useQuery({
+    queryKey: ['admin', 'orders', id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data } = await api.get<ApiSuccess<{ order: AdminOrderDetail }>>(`/admin/orders/${id}`);
+      return data.data.order;
     },
   });
 }
@@ -1252,22 +1525,113 @@ export function useUpsertSetting() {
   });
 }
 
-export function useAdminAudit() {
+export type AuditLogItem = {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  before?: Record<string, unknown> | null;
+  after?: Record<string, unknown> | null;
+  reason?: string | null;
+  ip?: string | null;
+  createdAt: string;
+  actor: {
+    id: string;
+    fullName: string;
+    email: string | null;
+    avatarUrl?: string | null;
+  } | null;
+};
+
+export type AuditStats = {
+  totalAuditLogs: number;
+  auditLogsPast24h: number;
+  totalLogins: number;
+  failedLoginsPast24h: number;
+  successfulLoginsPast24h: number;
+  payoutAuditsCount: number;
+};
+
+export type LoginHistoryItem = {
+  id: string;
+  userId: string;
+  ip: string | null;
+  userAgent: string | null;
+  success: boolean;
+  createdAt: string;
+  user: {
+    id: string;
+    fullName: string;
+    email: string | null;
+    phone: string | null;
+    status: string;
+    avatarUrl: string | null;
+  };
+};
+
+export function useAdminAudit(params?: {
+  page?: number;
+  limit?: number;
+  action?: string;
+  entityType?: string;
+  search?: string;
+}) {
   return useQuery({
-    queryKey: ['admin', 'audit'],
+    queryKey: ['admin', 'audit', params],
     queryFn: async () => {
+      const sp = new URLSearchParams();
+      if (params?.page) sp.set('page', String(params.page));
+      if (params?.limit) sp.set('limit', String(params.limit));
+      if (params?.action) sp.set('action', params.action);
+      if (params?.entityType) sp.set('entityType', params.entityType);
+      if (params?.search) sp.set('search', params.search);
+      const query = sp.toString() ? `?${sp.toString()}` : '';
+
       const { data } = await api.get<
         ApiSuccess<{
-          items: Array<{
-            id: string;
-            action: string;
-            entityType: string;
-            entityId: string | null;
-            createdAt: string;
-            actor: { fullName: string } | null;
-          }>;
+          items: AuditLogItem[];
+          pagination: { page: number; limit: number; total: number; totalPages: number };
         }>
-      >('/admin/audit-logs');
+      >(`/admin/audit-logs${query}`);
+      return data.data;
+    },
+  });
+}
+
+export function useAdminAuditStats() {
+  return useQuery({
+    queryKey: ['admin', 'audit', 'stats'],
+    queryFn: async () => {
+      const { data } = await api.get<ApiSuccess<{ stats: AuditStats }>>('/admin/audit-logs/stats');
+      return data.data.stats;
+    },
+  });
+}
+
+export function useAdminLoginHistory(params?: {
+  page?: number;
+  limit?: number;
+  userId?: string;
+  success?: boolean;
+  search?: string;
+}) {
+  return useQuery({
+    queryKey: ['admin', 'login-history', params],
+    queryFn: async () => {
+      const sp = new URLSearchParams();
+      if (params?.page) sp.set('page', String(params.page));
+      if (params?.limit) sp.set('limit', String(params.limit));
+      if (params?.userId) sp.set('userId', params.userId);
+      if (params?.success !== undefined) sp.set('success', String(params.success));
+      if (params?.search) sp.set('search', params.search);
+      const query = sp.toString() ? `?${sp.toString()}` : '';
+
+      const { data } = await api.get<
+        ApiSuccess<{
+          items: LoginHistoryItem[];
+          pagination: { page: number; limit: number; total: number; totalPages: number };
+        }>
+      >(`/admin/login-history${query}`);
       return data.data;
     },
   });
@@ -1416,6 +1780,8 @@ export function useAdminPayouts(status?: string) {
             amount: string;
             method: string;
             status: string;
+            reviewNotes: string | null;
+            destination: { phone?: string } | null;
             createdAt: string;
             seller: { businessName: string; businessPhone: string | null };
           }>;
@@ -1436,21 +1802,24 @@ export function useReviewPayout() {
       });
       return data.data;
     },
-    onSuccess: () => {
+    // Approval can succeed even when the MoMo transfer errors, so refresh either way.
+    onSettled: () => {
       void qc.invalidateQueries({ queryKey: ['admin', 'payouts'] });
       void qc.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
     },
   });
 }
 
-export function useProcessPayout() {
+export function usePayoutAction() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { data } = await api.post(`/admin/finance/payouts/${id}/process`);
-      return data.data;
+    mutationFn: async ({ id, action }: { id: string; action: 'send' | 'check' }) => {
+      const { data } = await api.post<ApiSuccess<{ payout: { status: string } }>>(
+        `/admin/finance/payouts/${id}/${action}`,
+      );
+      return data.data.payout;
     },
-    onSuccess: () => {
+    onSettled: () => {
       void qc.invalidateQueries({ queryKey: ['admin', 'payouts'] });
       void qc.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
     },
@@ -1477,10 +1846,265 @@ export function useReviewReturn() {
       });
       return data.data;
     },
-    onSuccess: () => {
+    // Approval can succeed even when the MoMo refund errors, so refresh either way.
+    onSettled: () => {
       void qc.invalidateQueries({ queryKey: ['admin', 'returns'] });
       void qc.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
     },
+  });
+}
+
+export function useRefundAction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ returnId, action }: { returnId: string; action: 'send' | 'check' }) => {
+      const { data } = await api.post<ApiSuccess<{ refund: { status: string } }>>(
+        `/admin/finance/returns/${returnId}/refund/${action}`,
+      );
+      return data.data.refund;
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: ['admin', 'returns'] });
+    },
+  });
+}
+
+export type DisputeType =
+  | 'SHIPPING_DELAY'
+  | 'NOT_DELIVERED'
+  | 'DAMAGED_ITEM'
+  | 'WRONG_ITEM'
+  | 'MISSING_ITEM'
+  | 'NOT_AS_DESCRIBED'
+  | 'PAYMENT_ISSUE'
+  | 'SELLER_UNRESPONSIVE'
+  | 'OTHER';
+
+export type DisputeStatus =
+  | 'OPEN'
+  | 'SELLER_RESPONDED'
+  | 'ESCALATED'
+  | 'RESOLVED'
+  | 'REJECTED'
+  | 'WITHDRAWN';
+
+export type DisputeResolution =
+  | 'FULL_REFUND'
+  | 'PARTIAL_REFUND'
+  | 'REPLACEMENT'
+  | 'REDELIVERY'
+  | 'RETURN_AND_REFUND'
+  | 'NO_ACTION'
+  | 'OTHER';
+
+export type DisputeParty = 'CUSTOMER' | 'SELLER' | 'ADMIN' | 'SYSTEM';
+
+export type DisputeSummary = {
+  id: string;
+  disputeNumber: string;
+  type: DisputeType;
+  status: DisputeStatus;
+  subject: string;
+  resolution: DisputeResolution | null;
+  createdAt: string;
+  updatedAt: string;
+  escalatedAt: string | null;
+  orderId: string;
+  orderNumber: string;
+  sellerOrderNumber: string;
+  sellerName: string;
+  customerName: string;
+  messageCount: number;
+  lastMessage: { body: string; authorRole: DisputeParty; createdAt: string } | null;
+};
+
+export type DisputeDetail = {
+  id: string;
+  disputeNumber: string;
+  type: DisputeType;
+  status: DisputeStatus;
+  subject: string;
+  description: string;
+  desiredOutcome: DisputeResolution | null;
+  evidenceUrls: string[];
+  resolution: DisputeResolution | null;
+  resolutionNote: string | null;
+  refundAmount: string | null;
+  escalatedAt: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  resolvedBy: { id: string; fullName: string } | null;
+  order: { id: string; orderNumber: string; status: string; total: string; createdAt: string };
+  sellerOrder: {
+    id: string;
+    sellerOrderNumber: string;
+    status: string;
+    subtotal: string;
+    deliveryFee: string;
+    items: Array<{
+      id: string;
+      productName: string;
+      variantName: string | null;
+      quantity: number;
+      lineTotal: string;
+    }>;
+  };
+  customer: { id: string; fullName: string; email?: string | null; phone?: string | null };
+  seller: { id: string; businessName: string; businessPhone: string | null };
+  messages: Array<{
+    id: string;
+    authorRole: DisputeParty;
+    authorName: string | null;
+    body: string;
+    attachments: string[];
+    createdAt: string;
+    mine: boolean;
+  }>;
+  viewer: {
+    role: 'CUSTOMER' | 'SELLER' | 'ADMIN';
+    canReply: boolean;
+    canWithdraw: boolean;
+    canResolve: boolean;
+  };
+};
+
+function invalidateDisputes(qc: ReturnType<typeof useQueryClient>, dispute?: DisputeDetail) {
+  void qc.invalidateQueries({ queryKey: ['disputes'] });
+  void qc.invalidateQueries({ queryKey: ['seller', 'disputes'] });
+  void qc.invalidateQueries({ queryKey: ['admin', 'disputes'] });
+  void qc.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
+  if (dispute) qc.setQueryData(['disputes', 'detail', dispute.id], dispute);
+}
+
+export function useMyDisputes(status?: DisputeStatus, enabled = true) {
+  return useQuery({
+    queryKey: ['disputes', 'mine', status],
+    enabled,
+    queryFn: async () => {
+      const { data } = await api.get<ApiSuccess<{ items: DisputeSummary[] }>>('/disputes/me', {
+        params: { status },
+      });
+      return data.data.items;
+    },
+  });
+}
+
+export function useSellerDisputes(status?: DisputeStatus) {
+  return useQuery({
+    queryKey: ['seller', 'disputes', status],
+    queryFn: async () => {
+      const { data } = await api.get<ApiSuccess<{ items: DisputeSummary[] }>>(
+        '/sellers/me/disputes',
+        { params: { status } },
+      );
+      return data.data.items;
+    },
+  });
+}
+
+export function useAdminDisputes(status?: DisputeStatus, q?: string) {
+  return useQuery({
+    queryKey: ['admin', 'disputes', status, q],
+    queryFn: async () => {
+      const { data } = await api.get<
+        ApiSuccess<{ items: DisputeSummary[]; counts: Partial<Record<DisputeStatus, number>> }>
+      >('/admin/disputes', { params: { status, q: q || undefined } });
+      return data.data;
+    },
+  });
+}
+
+export function useDispute(id: string) {
+  return useQuery({
+    queryKey: ['disputes', 'detail', id],
+    enabled: !!id,
+    refetchInterval: 30_000,
+    queryFn: async () => {
+      const { data } = await api.get<ApiSuccess<{ dispute: DisputeDetail }>>(`/disputes/${id}`);
+      return data.data.dispute;
+    },
+  });
+}
+
+export function useCreateDispute() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: {
+      orderId: string;
+      sellerOrderId: string;
+      type: DisputeType;
+      subject: string;
+      description: string;
+      desiredOutcome?: DisputeResolution;
+      evidenceUrls?: string[];
+    }) => {
+      const { data } = await api.post<ApiSuccess<{ dispute: DisputeDetail }>>('/disputes', body);
+      return data.data.dispute;
+    },
+    onSuccess: (dispute) => invalidateDisputes(qc, dispute),
+  });
+}
+
+export function useUploadDisputeEvidence() {
+  return useMutation({
+    mutationFn: async (files: File[]) => {
+      const form = new FormData();
+      files.forEach((file) => form.append('files', file));
+      const { data } = await api.post<
+        ApiSuccess<{ files: Array<{ url: string; kind: 'image' | 'video'; originalName: string }> }>
+      >('/disputes/uploads', form, { timeout: 120_000 });
+      return data.data.files;
+    },
+  });
+}
+
+export function usePostDisputeMessage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { id: string; body: string; attachments?: string[] }) => {
+      const { data } = await api.post<ApiSuccess<{ dispute: DisputeDetail }>>(
+        `/disputes/${body.id}/messages`,
+        { body: body.body, attachments: body.attachments },
+      );
+      return data.data.dispute;
+    },
+    onSuccess: (dispute) => invalidateDisputes(qc, dispute),
+  });
+}
+
+export function useWithdrawDispute() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { id: string; reason?: string }) => {
+      const { data } = await api.post<ApiSuccess<{ dispute: DisputeDetail }>>(
+        `/disputes/${body.id}/withdraw`,
+        { reason: body.reason },
+      );
+      return data.data.dispute;
+    },
+    onSuccess: (dispute) => invalidateDisputes(qc, dispute),
+  });
+}
+
+export function useResolveDispute() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: {
+      id: string;
+      outcome: 'RESOLVED' | 'REJECTED';
+      resolution: DisputeResolution;
+      note: string;
+      refundAmount?: number;
+    }) => {
+      const { id, ...rest } = body;
+      const { data } = await api.post<ApiSuccess<{ dispute: DisputeDetail }>>(
+        `/admin/disputes/${id}/resolve`,
+        rest,
+      );
+      return data.data.dispute;
+    },
+    onSuccess: (dispute) => invalidateDisputes(qc, dispute),
   });
 }
 

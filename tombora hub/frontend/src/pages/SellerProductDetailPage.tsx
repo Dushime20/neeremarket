@@ -1,7 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useDeleteProduct, useSellerProduct, useUpdateProduct } from '@/api/hooks';
-import { Alert, Badge, Button, EmptyState, TableSkeleton } from '@/components/ui';
+import { Alert, Badge, Button, EmptyState, TableSkeleton, useConfirm, useToast } from '@/components/ui';
 import { getErrorMessage } from '@/api/client';
 import { formatRwf } from '@/utils/money';
 import { prettyStatus, statusTone } from '@/utils/status';
@@ -13,6 +13,8 @@ import styles from './workspace.module.css';
 export function SellerProductDetailPage() {
   const { productId = '' } = useParams();
   const navigate = useNavigate();
+  const confirm = useConfirm();
+  const toast = useToast();
   const { data: product, isLoading, isError, error } = useSellerProduct(productId);
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
@@ -25,13 +27,24 @@ export function SellerProductDetailPage() {
 
   async function unpublish() {
     if (!product) return;
-    if (!window.confirm(`Remove “${product.name}” from the marketplace?`)) return;
+    const ok = await confirm({
+      title: 'Remove from marketplace',
+      message: `Remove “${product.name}” from the marketplace? Shoppers will no longer see it.`,
+      confirmText: 'Remove listing',
+      tone: 'warning',
+    });
+    if (!ok) return;
+
     setActionError(null);
     try {
       await updateProduct.mutateAsync({ id: product.id, unpublish: true });
-      setMessage('Listing was removed from the market.');
+      const msg = 'Listing was removed from the market.';
+      setMessage(msg);
+      toast.success(msg);
     } catch (err) {
-      setActionError(getErrorMessage(err, 'Could not remove listing from the market'));
+      const msg = getErrorMessage(err, 'Could not remove listing from the market');
+      setActionError(msg);
+      toast.error(msg);
     }
   }
 
@@ -40,21 +53,35 @@ export function SellerProductDetailPage() {
     setActionError(null);
     try {
       await updateProduct.mutateAsync({ id: product.id, relist: true });
-      setMessage('Listing was submitted to go back on the market.');
+      const msg = 'Listing was submitted to go back on the market.';
+      setMessage(msg);
+      toast.success(msg);
     } catch (err) {
-      setActionError(getErrorMessage(err, 'Could not relist product'));
+      const msg = getErrorMessage(err, 'Could not relist product');
+      setActionError(msg);
+      toast.error(msg);
     }
   }
 
   async function remove() {
     if (!product) return;
-    if (!window.confirm(`Delete “${product.name}”?`)) return;
+    const ok = await confirm({
+      title: 'Delete product',
+      message: `Delete “${product.name}”? This cannot be undone from the catalog.`,
+      confirmText: 'Delete permanently',
+      tone: 'danger',
+    });
+    if (!ok) return;
+
     setActionError(null);
     try {
       await deleteProduct.mutateAsync(product.id);
+      toast.success(`“${product.name}” was deleted.`);
       navigate('/seller/products');
     } catch (err) {
-      setActionError(getErrorMessage(err, 'Could not delete product'));
+      const msg = getErrorMessage(err, 'Could not delete product');
+      setActionError(msg);
+      toast.error(msg);
     }
   }
 

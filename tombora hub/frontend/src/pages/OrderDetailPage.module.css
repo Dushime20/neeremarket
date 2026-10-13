@@ -17,9 +17,67 @@
 }
 
 .total {
-  font-size: 1.4rem;
-  font-weight: 700;
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
   margin: 0;
+}
+
+.totals {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
+.breakdown,
+.parcelTotals {
+  margin: 0;
+  display: grid;
+  gap: 0.2rem;
+  font-size: var(--text-sm);
+}
+
+.breakdown {
+  min-width: 13rem;
+  color: var(--color-ink-muted);
+}
+
+.breakdown div,
+.parcelTotals div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.breakdown dt,
+.breakdown dd,
+.parcelTotals dt,
+.parcelTotals dd {
+  margin: 0;
+}
+
+.breakdown dd,
+.parcelTotals dd {
+  font-variant-numeric: tabular-nums;
+}
+
+.parcelTotals {
+  margin-top: 0.25rem;
+  color: var(--color-ink-muted);
+}
+
+.parcelTotal {
+  padding-top: 0.35rem;
+  border-top: 1px solid #eef2ef;
+  color: var(--color-ink);
+  font-weight: var(--weight-semibold);
+}
+
+@media (max-width: 600px) {
+  .totals {
+    align-items: stretch;
+    width: 100%;
+  }
 }
 
 .payBox {
@@ -48,7 +106,7 @@
 
 .sellerOrder h2 {
   font-family: var(--font-sans);
-  font-size: 1rem;
+  font-size: var(--text-md);
   margin: 0 0 0.5rem;
 }
 
@@ -56,6 +114,42 @@
   list-style: none;
   margin: 0.75rem 0;
   padding: 0;
+}
+
+.sellerOrderHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.sellerOrderHead h2 {
+  margin: 0;
+}
+
+.disputeLink {
+  color: var(--color-brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.helpNote {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-ink-muted);
+}
+
+.helpNote a {
+  color: var(--color-brand);
+  font-weight: var(--weight-semibold);
 }
 
 .sellerOrder li {

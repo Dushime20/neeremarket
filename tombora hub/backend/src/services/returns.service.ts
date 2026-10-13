@@ -4,6 +4,8 @@ import { AppError, Errors } from '../shared/errors';
 import { env } from '../config/env';
 import { clawbackRefund } from './finance.service';
 import { assertOrderTransition } from './order-state';
+import { domainEvents } from '../events/bus';
+import { buildTrxRef, fdiGetTransaction, fdiMomoPush } from '../providers/payment/fdi.client';
 
 type Tx = Prisma.TransactionClient;
 
@@ -119,17 +121,15 @@ export async function reviewReturn(
     });
   }
 
-  return prisma.$transaction(async (tx) => {
-    await tx.returnRequest.update({
-      where: { id: returnId },
-      data: { status: 'APPROVED', notes: notes || ret.notes },
-    });
+  const payment = ret.order.payments.find((p) => p.status === 'PAID' || p.status === 'PARTIALLY_REFUNDED');
+  if (!payment) throw Errors.conflict('No paid payment to refund');
 
-    // Fast-path demo: inspect + refund immediately
-    await tx.returnRequest.update({
-      where: { id: returnId },
-      data: { status: 'REFUND_PENDING' },
+  await prisma.$transaction(async (tx) => {
+    const claimed = await tx.returnRequest.updateMany({
+      where: { id: returnId, status: { in: ['REQUESTED', 'UNDER_REVIEW'] } },
+      data: { status: 'REFUND_PENDING', notes: notes || ret.notes },
     });
+    if (claimed.count === 0) throw Errors.conflict('Return cannot be reviewed in current status');
 
     let refundGross = 0n;
     for (const item of ret.items) {
@@ -137,44 +137,150 @@ export async function reviewReturn(
       refundGross += claw.refundGross;
     }
 
-    const payment = ret.order.payments.find((p) => p.status === 'PAID' || p.status === 'PARTIALLY_REFUNDED');
-    if (!payment) throw Errors.conflict('No paid payment to refund');
-
-    const refund = await tx.refund.create({
+    await tx.refund.create({
       data: {
         returnId: ret.id,
         paymentId: payment.id,
         amount: refundGross,
         currency: env.DEFAULT_CURRENCY,
-        status: 'REFUNDED',
-        providerRef: `REF-${ret.id.slice(0, 8)}`,
-      },
-    });
-
-    await tx.payment.update({
-      where: { id: payment.id },
-      data: {
-        status: refundGross >= payment.amount ? 'REFUNDED' : 'PARTIALLY_REFUNDED',
+        status: 'INITIATED',
+        providerRef: buildTrxRef('refund', ret.id),
       },
     });
 
     if (canTransitionSafe(ret.order.status, 'REFUND_PENDING')) {
       await tx.order.update({ where: { id: ret.orderId }, data: { status: 'REFUND_PENDING' } });
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: ret.orderId,
+          fromStatus: ret.order.status,
+          toStatus: 'REFUND_PENDING',
+          reason: 'Return approved',
+        },
+      });
     }
-    if (canTransitionSafe('REFUND_PENDING', 'REFUNDED') || ret.order.status === 'REFUND_PENDING') {
-      await tx.order.update({ where: { id: ret.orderId }, data: { status: 'REFUNDED' } });
-    }
-
-    await tx.returnRequest.update({
-      where: { id: returnId },
-      data: { status: 'CLOSED' },
-    });
-
-    return {
-      returnId: ret.id,
-      refund: { ...refund, amount: String(refund.amount) },
-    };
   });
+
+  return sendReturnRefund(returnId);
+}
+
+function serializeRefund<T extends { amount: bigint }>(refund: T) {
+  return { ...refund, amount: String(refund.amount) };
+}
+
+/** The MoMo number the customer paid from, as recorded when the collection was started. */
+function payerMsisdn(transactions: Array<{ rawPayload: Prisma.JsonValue }>) {
+  for (const t of transactions) {
+    const raw = (t.rawPayload || {}) as { msisdn?: unknown };
+    if (typeof raw.msisdn === 'string' && raw.msisdn) return raw.msisdn;
+  }
+  return null;
+}
+
+/**
+ * Pushes the pending refund for a return back to the payer. A refund FDI rejected gets a fresh
+ * trxRef; one whose push call errored keeps its trxRef so a retry cannot pay twice.
+ */
+export async function sendReturnRefund(returnId: string) {
+  let refund = await prisma.refund.findFirst({
+    where: { returnId, status: { in: ['INITIATED', 'FAILED'] } },
+    orderBy: { createdAt: 'desc' },
+    include: { payment: { include: { transactions: { orderBy: { createdAt: 'asc' } } } } },
+  });
+  if (!refund) throw Errors.conflict('No refund is waiting to be sent for this return');
+
+  if (refund.status === 'FAILED') {
+    refund = await prisma.refund.update({
+      where: { id: refund.id },
+      data: { status: 'INITIATED', providerRef: buildTrxRef('refund', returnId) },
+      include: { payment: { include: { transactions: { orderBy: { createdAt: 'asc' } } } } },
+    });
+  }
+
+  const msisdn = payerMsisdn(refund.payment.transactions);
+  if (!msisdn) throw Errors.conflict('The paying Mobile Money number for this order is unknown');
+
+  try {
+    await fdiMomoPush({ trxRef: refund.providerRef!, msisdn, amount: Number(refund.amount) });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Mobile Money refund failed';
+    throw Errors.validation(`Return approved but the refund was not sent: ${message}`);
+  }
+
+  const sent = await prisma.refund.update({ where: { id: refund.id }, data: { status: 'PENDING' } });
+  return { returnId, refund: serializeRefund(sent) };
+}
+
+/** Reconciles a sent refund with FDI (called by the webhook and the admin "check status" action). */
+export async function syncRefundWithProvider(providerRef: string) {
+  const refund = await prisma.refund.findFirst({
+    where: { providerRef },
+    include: { payment: true, returnRequest: { include: { order: true } } },
+  });
+  if (!refund) throw Errors.notFound('Refund');
+  if (!['INITIATED', 'PENDING'].includes(refund.status)) {
+    return { returnId: refund.returnId, refund: serializeRefund(refund) };
+  }
+
+  const live = await fdiGetTransaction(providerRef);
+  if (live.status === 'SUCCESSFUL') {
+    const done = await prisma.$transaction(async (tx) => {
+      const moved = await tx.refund.updateMany({
+        where: { id: refund.id, status: { in: ['INITIATED', 'PENDING'] } },
+        data: { status: 'REFUNDED' },
+      });
+      if (moved.count === 0) return false;
+
+      const refunded = await tx.refund.aggregate({
+        where: { paymentId: refund.paymentId, status: 'REFUNDED' },
+        _sum: { amount: true },
+      });
+      await tx.payment.update({
+        where: { id: refund.paymentId },
+        data: {
+          status: (refunded._sum.amount ?? 0n) >= refund.payment.amount ? 'REFUNDED' : 'PARTIALLY_REFUNDED',
+        },
+      });
+
+      if (refund.returnRequest) {
+        await tx.returnRequest.update({
+          where: { id: refund.returnRequest.id },
+          data: { status: 'REFUNDED' },
+        });
+        const order = refund.returnRequest.order;
+        if (order.status === 'REFUND_PENDING') {
+          await tx.order.update({ where: { id: order.id }, data: { status: 'REFUNDED' } });
+          await tx.orderStatusHistory.create({
+            data: {
+              orderId: order.id,
+              fromStatus: 'REFUND_PENDING',
+              toStatus: 'REFUNDED',
+              reason: 'Mobile Money refund confirmed',
+            },
+          });
+        }
+      }
+      return true;
+    });
+    if (done) domainEvents.emit('RefundCompleted', { refundId: refund.id });
+  } else if (live.status === 'FAILED') {
+    await prisma.refund.updateMany({
+      where: { id: refund.id, status: { in: ['INITIATED', 'PENDING'] } },
+      data: { status: 'FAILED' },
+    });
+  }
+
+  const refreshed = await prisma.refund.findUniqueOrThrow({ where: { id: refund.id } });
+  return { returnId: refund.returnId, refund: serializeRefund(refreshed) };
+}
+
+export async function checkReturnRefund(returnId: string) {
+  const refund = await prisma.refund.findFirst({
+    where: { returnId },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (!refund?.providerRef) throw Errors.conflict('No refund has been started for this return');
+  return syncRefundWithProvider(refund.providerRef);
 }
 
 export async function listReturns(userId?: string, asAdmin = false) {

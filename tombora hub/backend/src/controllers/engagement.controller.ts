@@ -81,6 +81,13 @@ export async function listThreads(req: Request, res: Response) {
   return success(res, data);
 }
 
+export async function listMessageableSellers(req: Request, res: Response) {
+  if (!req.user) throw Errors.unauthorized();
+  const q = req.query.q ? String(req.query.q).slice(0, 100) : undefined;
+  const data = await messagingService.listMessageableSellers(req.user.id, q);
+  return success(res, data);
+}
+
 export async function getThread(req: Request, res: Response) {
   if (!req.user) throw Errors.unauthorized();
   const asAdmin = req.query.scope === 'all' && messagingService.canManageInbox(req.user.roles);

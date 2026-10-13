@@ -1,15 +1,84 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { useMe, useSaveSellerOnboarding, useSellerOnboarding } from '@/api/hooks';
+import {
+  useMe,
+  useSaveSellerOnboarding,
+  useSellerOnboarding,
+  type SellerOnboarding,
+} from '@/api/hooks';
 import { Alert, Badge, Button, EmptyState, Input, TableSkeleton } from '@/components/ui';
 import { getErrorMessage } from '@/api/client';
 import { prettyStatus, statusTone } from '@/utils/status';
 import styles from './workspace.module.css';
 
+type OnboardingForm = {
+  idNumber: string;
+  fullName: string;
+  idIssuedAt: string;
+  registrationNumber: string;
+  businessType: string;
+  regIssuedAt: string;
+  tin: string;
+  taxOffice: string;
+  method: string;
+  phone: string;
+  accountName: string;
+};
+
+const EMPTY_FORM: OnboardingForm = {
+  idNumber: '',
+  fullName: '',
+  idIssuedAt: '',
+  registrationNumber: '',
+  businessType: '',
+  regIssuedAt: '',
+  tin: '',
+  taxOffice: '',
+  method: 'MTN_MOMO',
+  phone: '',
+  accountName: '',
+};
+
 function metaValue(meta: Record<string, unknown> | null | undefined, key: string) {
   const value = meta?.[key];
   return value == null ? '' : String(value);
+}
+
+function dateInputValue(raw: string) {
+  const match = /^(\d{4}-\d{2}-\d{2})/.exec(raw.trim());
+  return match ? match[1] : '';
+}
+
+function formFromVerification(
+  verification: SellerOnboarding['verification'] | null | undefined,
+): OnboardingForm {
+  if (!verification) return EMPTY_FORM;
+  const { nationalIdMeta, businessRegMeta, taxMeta, payoutMeta } = verification;
+  return {
+    idNumber: metaValue(nationalIdMeta, 'idNumber'),
+    fullName: metaValue(nationalIdMeta, 'fullName'),
+    idIssuedAt: dateInputValue(metaValue(nationalIdMeta, 'issuedAt')),
+    registrationNumber: metaValue(businessRegMeta, 'registrationNumber'),
+    businessType: metaValue(businessRegMeta, 'businessType'),
+    regIssuedAt: dateInputValue(metaValue(businessRegMeta, 'issuedAt')),
+    tin: metaValue(taxMeta, 'tin'),
+    taxOffice: metaValue(taxMeta, 'taxOffice'),
+    method: metaValue(payoutMeta, 'method') || 'MTN_MOMO',
+    phone: metaValue(payoutMeta, 'phone'),
+    accountName: metaValue(payoutMeta, 'accountName'),
+  };
+}
+
+function verificationSnapshot(verification: SellerOnboarding['verification'] | null | undefined) {
+  if (!verification) return '';
+  return JSON.stringify({
+    id: verification.id,
+    nationalIdMeta: verification.nationalIdMeta,
+    businessRegMeta: verification.businessRegMeta,
+    taxMeta: verification.taxMeta,
+    payoutMeta: verification.payoutMeta,
+  });
 }
 
 export function SellerOnboardingPage() {
@@ -19,37 +88,14 @@ export function SellerOnboardingPage() {
   const save = useSaveSellerOnboarding();
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    idNumber: '',
-    fullName: '',
-    idIssuedAt: '',
-    registrationNumber: '',
-    businessType: '',
-    regIssuedAt: '',
-    tin: '',
-    taxOffice: '',
-    method: 'MTN_MOMO',
-    phone: '',
-    accountName: '',
-  });
-
-  useEffect(() => {
-    if (!onboarding?.verification) return;
-    const { nationalIdMeta, businessRegMeta, taxMeta, payoutMeta } = onboarding.verification;
-    setForm({
-      idNumber: metaValue(nationalIdMeta, 'idNumber'),
-      fullName: metaValue(nationalIdMeta, 'fullName'),
-      idIssuedAt: metaValue(nationalIdMeta, 'issuedAt'),
-      registrationNumber: metaValue(businessRegMeta, 'registrationNumber'),
-      businessType: metaValue(businessRegMeta, 'businessType'),
-      regIssuedAt: metaValue(businessRegMeta, 'issuedAt'),
-      tin: metaValue(taxMeta, 'tin'),
-      taxOffice: metaValue(taxMeta, 'taxOffice'),
-      method: metaValue(payoutMeta, 'method') || 'MTN_MOMO',
-      phone: metaValue(payoutMeta, 'phone'),
-      accountName: metaValue(payoutMeta, 'accountName'),
-    });
-  }, [onboarding]);
+  const snapshot = verificationSnapshot(onboarding?.verification);
+  const [form, setForm] = useState<OnboardingForm>(EMPTY_FORM);
+  const [loadedSnapshot, setLoadedSnapshot] = useState<string | null>(null);
+  // Fill fields before paint. A later update inside a disabled fieldset is ignored by the browser.
+  if (onboarding && loadedSnapshot !== snapshot) {
+    setLoadedSnapshot(snapshot);
+    setForm(formFromVerification(onboarding.verification));
+  }
 
   const locked = useMemo(() => {
     const status = onboarding?.verificationStatus;
@@ -203,36 +249,41 @@ export function SellerOnboardingPage() {
               </div>
               <div className={styles.panelBody}>
                 <form className={`${styles.form} ${styles.formWide}`} onSubmit={onSave}>
-                  <fieldset className={styles.fieldset} disabled={locked}>
+                  <fieldset className={styles.fieldset} data-locked={locked || undefined}>
                     <legend>National ID</legend>
                     <Input
                       label="ID number"
                       value={form.idNumber}
+                      readOnly={locked}
                       onChange={(e) => setForm({ ...form, idNumber: e.target.value })}
                     />
                     <Input
                       label="Name on ID"
                       value={form.fullName}
+                      readOnly={locked}
                       onChange={(e) => setForm({ ...form, fullName: e.target.value })}
                     />
                     <Input
                       label="Issue date"
                       type="date"
                       value={form.idIssuedAt}
+                      readOnly={locked}
                       onChange={(e) => setForm({ ...form, idIssuedAt: e.target.value })}
                     />
                   </fieldset>
 
-                  <fieldset className={styles.fieldset} disabled={locked}>
+                  <fieldset className={styles.fieldset} data-locked={locked || undefined}>
                     <legend>Business registration</legend>
                     <Input
                       label="Registration number"
                       value={form.registrationNumber}
+                      readOnly={locked}
                       onChange={(e) => setForm({ ...form, registrationNumber: e.target.value })}
                     />
                     <Input
                       label="Business type"
                       value={form.businessType}
+                      readOnly={locked}
                       onChange={(e) => setForm({ ...form, businessType: e.target.value })}
                       placeholder="Sole proprietor, Ltd, cooperative"
                     />
@@ -240,30 +291,34 @@ export function SellerOnboardingPage() {
                       label="Issue date"
                       type="date"
                       value={form.regIssuedAt}
+                      readOnly={locked}
                       onChange={(e) => setForm({ ...form, regIssuedAt: e.target.value })}
                     />
                   </fieldset>
 
-                  <fieldset className={styles.fieldset} disabled={locked}>
+                  <fieldset className={styles.fieldset} data-locked={locked || undefined}>
                     <legend>Tax</legend>
                     <Input
                       label="TIN"
                       value={form.tin}
+                      readOnly={locked}
                       onChange={(e) => setForm({ ...form, tin: e.target.value })}
                     />
                     <Input
                       label="Tax office / RRA center"
                       value={form.taxOffice}
+                      readOnly={locked}
                       onChange={(e) => setForm({ ...form, taxOffice: e.target.value })}
                     />
                   </fieldset>
 
-                  <fieldset className={styles.fieldset} disabled={locked}>
+                  <fieldset className={styles.fieldset} data-locked={locked || undefined}>
                     <legend>Payout destination</legend>
                     <label className={styles.select}>
                       Method
                       <select
                         value={form.method}
+                        disabled={locked}
                         onChange={(e) => setForm({ ...form, method: e.target.value })}
                       >
                         <option value="MTN_MOMO">MTN MoMo</option>
@@ -273,11 +328,13 @@ export function SellerOnboardingPage() {
                     <Input
                       label="Mobile money number"
                       value={form.phone}
+                      readOnly={locked}
                       onChange={(e) => setForm({ ...form, phone: e.target.value })}
                     />
                     <Input
                       label="Account name"
                       value={form.accountName}
+                      readOnly={locked}
                       onChange={(e) => setForm({ ...form, accountName: e.target.value })}
                     />
                   </fieldset>

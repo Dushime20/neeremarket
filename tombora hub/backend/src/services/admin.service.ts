@@ -13,6 +13,8 @@ export async function getDashboard() {
     pendingProducts,
     openPayouts,
     openReturns,
+    openDisputes,
+    escalatedDisputes,
     gmv,
   ] = await Promise.all([
     prisma.user.count({ where: { deletedAt: null } }),
@@ -23,6 +25,8 @@ export async function getDashboard() {
     prisma.product.count({ where: { status: 'PENDING_APPROVAL', deletedAt: null } }),
     prisma.payoutRequest.count({ where: { status: { in: ['REQUESTED', 'UNDER_REVIEW', 'APPROVED'] } } }),
     prisma.returnRequest.count({ where: { status: { in: ['REQUESTED', 'UNDER_REVIEW'] } } }),
+    prisma.dispute.count({ where: { status: { in: ['OPEN', 'SELLER_RESPONDED', 'ESCALATED'] } } }),
+    prisma.dispute.count({ where: { status: 'ESCALATED' } }),
     prisma.order.aggregate({
       where: { status: { in: ['PAID', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'] } },
       _sum: { total: true },
@@ -39,6 +43,8 @@ export async function getDashboard() {
       pendingProducts,
       openPayouts,
       openReturns,
+      openDisputes,
+      escalatedDisputes,
     },
     gmv: String(gmv._sum.total ?? 0n),
     currency: 'RWF',
@@ -84,6 +90,68 @@ export async function listUsers(page = 1, limit = 20, q?: string) {
       roles: u.roles.map((r) => r.role.code),
     })),
     pagination: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
+  };
+}
+
+export async function getUser(userId: string) {
+  const user = await prisma.user.findFirst({
+    where: { id: userId, deletedAt: null },
+    select: {
+      id: true,
+      email: true,
+      phone: true,
+      fullName: true,
+      status: true,
+      avatarUrl: true,
+      emailVerifiedAt: true,
+      phoneVerifiedAt: true,
+      createdAt: true,
+      updatedAt: true,
+      roles: { include: { role: { select: { code: true, name: true } } } },
+      sellerProfile: {
+        select: {
+          id: true,
+          businessName: true,
+          verificationStatus: true,
+          store: { select: { id: true, name: true, slug: true } },
+        },
+      },
+      addresses: {
+        select: {
+          id: true,
+          fullName: true,
+          phone: true,
+          province: true,
+          district: true,
+          sector: true,
+          street: true,
+          isDefault: true,
+        },
+      },
+      _count: {
+        select: {
+          orders: true,
+          reviews: true,
+          disputes: true,
+        },
+      },
+      loginHistory: {
+        take: 6,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          ip: true,
+          userAgent: true,
+          success: true,
+          createdAt: true,
+        },
+      },
+    },
+  });
+  if (!user) throw Errors.notFound('User');
+  return {
+    ...user,
+    roles: user.roles.map((r) => r.role.code),
   };
 }
 
@@ -134,6 +202,48 @@ export async function listSellers(page = 1, limit = 20, status?: VerificationSta
   return {
     items,
     pagination: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
+  };
+}
+
+export async function getSeller(sellerId: string) {
+  const seller = await prisma.sellerProfile.findUnique({
+    where: { id: sellerId },
+    include: {
+      user: {
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          phone: true,
+          status: true,
+          createdAt: true,
+        },
+      },
+      store: true,
+      verifications: {
+        orderBy: { createdAt: 'desc' },
+      },
+      wallet: true,
+      _count: {
+        select: {
+          sellerOrders: true,
+          reviews: true,
+          payoutRequests: true,
+          disputes: true,
+        },
+      },
+    },
+  });
+  if (!seller) throw Errors.notFound('Seller');
+  return {
+    ...seller,
+    wallet: seller.wallet
+      ? {
+          ...seller.wallet,
+          pendingBalance: String(seller.wallet.pendingBalance),
+          availableBalance: String(seller.wallet.availableBalance),
+        }
+      : null,
   };
 }
 
@@ -195,6 +305,40 @@ export async function listProducts(page = 1, limit = 20, status?: ProductStatus)
   return {
     items: items.map((p) => ({ ...p, price: String(p.price) })),
     pagination: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
+  };
+}
+
+export async function getProduct(productId: string) {
+  const product = await prisma.product.findFirst({
+    where: { id: productId, deletedAt: null },
+    include: {
+      category: { select: { id: true, name: true, slug: true } },
+      store: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          seller: { select: { id: true, businessName: true, verificationStatus: true } },
+        },
+      },
+      images: { orderBy: { sortOrder: 'asc' } },
+      videos: true,
+      variants: {
+        include: {
+          inventory: true,
+        },
+      },
+    },
+  });
+  if (!product) throw Errors.notFound('Product');
+  return {
+    ...product,
+    price: String(product.price),
+    discountPrice: product.discountPrice ? String(product.discountPrice) : null,
+    variants: product.variants.map((v) => ({
+      ...v,
+      price: v.price ? String(v.price) : null,
+    })),
   };
 }
 

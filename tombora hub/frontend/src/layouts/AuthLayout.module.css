@@ -35,8 +35,8 @@
 
 .help {
   color: #888;
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
 }
 
 .help:hover {
@@ -86,18 +86,18 @@
 
 .promoTitle {
   font-family: var(--font-sans);
-  font-size: 24px;
-  line-height: 1.2;
-  font-weight: 700;
-  letter-spacing: 0;
+  font-size: var(--text-2xl);
+  line-height: var(--leading-tight);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
   margin: 0 0 10px;
 }
 
 .promoDesc {
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: var(--text-md);
+  line-height: var(--leading-normal);
   margin: 0;
-  font-weight: 500;
+  font-weight: var(--weight-medium);
 }
 
 .card {

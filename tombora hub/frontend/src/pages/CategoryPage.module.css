@@ -8,13 +8,13 @@
   align-items: center;
   gap: 0.4rem;
   margin-bottom: 1rem;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--color-ink-muted);
 }
 
 .crumbs a {
   color: var(--color-brand);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 
 .layout {
@@ -47,15 +47,15 @@
 
 .toolbar h1 {
   margin: 0 0 0.25rem;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
   color: var(--color-ink);
 }
 
 .meta {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--color-ink-muted);
 }
 
@@ -63,8 +63,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
   color: var(--color-ink-muted);
   text-transform: none;
   letter-spacing: 0;
@@ -79,8 +79,8 @@
   background: #fff;
   color: var(--color-ink);
   font: inherit;
-  font-size: 0.88rem;
-  font-weight: 600;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
   text-transform: none;
   letter-spacing: 0;
 }
@@ -91,7 +91,7 @@
   justify-content: center;
   gap: 0.85rem;
   margin-top: 1.5rem;
-  font-size: 0.88rem;
+  font-size: var(--text-sm);
   color: var(--color-ink-muted);
 }
 
@@ -118,9 +118,10 @@
 
 .filterHead h2 {
   margin: 0;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
   color: var(--color-ink);
+  letter-spacing: var(--tracking-tight);
 }
 
 .filterHeadActions {
@@ -134,8 +135,8 @@
   background: transparent;
   color: var(--color-brand);
   font: inherit;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   cursor: pointer;
   padding: 0.35rem 0.15rem;
   min-height: 36px;
@@ -171,8 +172,8 @@
   background: transparent;
   padding: 0.35rem 0;
   font: inherit;
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
   color: var(--color-ink);
   cursor: pointer;
   text-align: left;
@@ -180,7 +181,7 @@
 
 .sectionToggle span {
   color: #8a97a5;
-  font-size: 1.1rem;
+  font-size: var(--text-lg);
   line-height: 1;
 }
 
@@ -198,8 +199,8 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.86rem;
-  font-weight: 600;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
   color: var(--color-ink-muted);
   text-align: left;
 }
@@ -220,7 +221,7 @@ button.checkRow {
 
 .checkOn {
   color: var(--color-brand) !important;
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
 }
 
 .checkRow input {
@@ -267,8 +268,8 @@ button.checkRow {
     background: #fff;
     color: var(--color-ink);
     font: inherit;
-    font-size: 14px;
-    font-weight: 700;
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
     cursor: pointer;
   }
 
@@ -285,8 +286,8 @@ button.checkRow {
     border-radius: 999px;
     background: var(--color-brand);
     color: #fff;
-    font-size: 11px;
-    font-weight: 700;
+    font-size: var(--text-2xs);
+    font-weight: var(--weight-semibold);
     line-height: 1.15rem;
     text-align: center;
   }
@@ -362,7 +363,7 @@ button.checkRow {
     border-radius: 999px;
     background: #f4f5f7;
     color: var(--color-ink);
-    font-size: 22px;
+    font-size: var(--text-xl);
     line-height: 1;
     cursor: pointer;
   }
@@ -389,7 +390,7 @@ button.checkRow {
 
   .sectionToggle {
     min-height: 44px;
-    font-size: 14px;
+    font-size: var(--text-sm);
   }
 
   .categoryList {
@@ -416,8 +417,8 @@ button.checkRow {
     border-radius: 999px;
     background: #f7f8fa;
     color: var(--color-ink);
-    font-size: 13px;
-    font-weight: 500;
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
     white-space: nowrap;
   }
 
@@ -434,7 +435,7 @@ button.checkRow {
     background: var(--color-brand-soft);
     border-color: var(--color-brand);
     color: var(--color-brand);
-    font-weight: 700;
+    font-weight: var(--weight-semibold);
   }
 
   .priceForm {
@@ -447,6 +448,6 @@ button.checkRow {
 
   .checkRow {
     min-height: 40px;
-    font-size: 14px;
+    font-size: var(--text-sm);
   }
 }

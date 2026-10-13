@@ -55,9 +55,9 @@
   border-radius: 3px;
   background: #333;
   color: #fff;
-  font-size: 12px;
-  font-weight: 500;
-  font-family: 'Roboto', Arial, 'Microsoft YaHei', sans-serif;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  font-family: var(--font-sans);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease;

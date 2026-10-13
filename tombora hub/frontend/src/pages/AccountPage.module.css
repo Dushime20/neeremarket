@@ -25,8 +25,8 @@
   place-items: center;
   background: var(--color-brand-soft);
   color: var(--color-brand);
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
   flex-shrink: 0;
 }
 
@@ -37,21 +37,25 @@
 
 .kicker {
   margin: 0 0 0.15rem;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--color-ink-muted);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
 }
 
 .hero h1 {
   margin: 0;
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.25;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
 }
 
 .meta {
   margin: 0.2rem 0 0;
   color: var(--color-ink-muted);
-  font-size: 13px;
+  font-size: var(--text-xs);
 }
 
 .heroActions {
@@ -79,14 +83,14 @@
 
 .stats strong {
   display: block;
-  font-size: 1.35rem;
+  font-size: var(--text-xl);
   line-height: 1.1;
   color: var(--color-ink);
 }
 
 .stats span {
   color: var(--color-ink-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .shortcuts {
@@ -133,15 +137,15 @@
 
 .shortcut strong {
   display: block;
-  font-size: 14px;
+  font-size: var(--text-sm);
 }
 
 .shortcut em {
   display: block;
   font-style: normal;
   color: var(--color-ink-muted);
-  font-size: 12px;
-  line-height: 1.35;
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
 }
 
 .columns {
@@ -169,13 +173,13 @@
 
 .panelHead h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--text-md);
 }
 
 .panelHead a {
   color: var(--color-brand);
-  font-weight: 600;
-  font-size: 12px;
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-xs);
 }
 
 .skel {
@@ -213,12 +217,12 @@
 .address p {
   margin: 0.2rem 0 0;
   color: var(--color-ink-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .amount {
-  font-weight: 700;
-  font-size: 13px;
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-xs);
 }
 
 .address {
@@ -232,7 +236,7 @@
   align-items: center;
   gap: 0.45rem;
   flex-wrap: wrap;
-  font-size: 13px;
+  font-size: var(--text-xs);
 }
 
 @media (max-width: 900px) {

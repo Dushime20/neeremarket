@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../shared/prisma';
 import { Errors } from '../shared/errors';
 import { env } from '../config/env';
+import { logger } from '../shared/logger';
 import { getPaymentProvider } from '../providers/payment/payment-provider';
 import { commitReservedStock, releaseReservedStock, reserveStock } from './inventory.service';
 import { assertOrderTransition } from './order-state';
@@ -199,9 +200,7 @@ export async function checkout(userId: string, input: CheckoutInput) {
   const total = subtotal + deliveryFee - discountTotal + platformCharges;
 
   const sellerIds = [...new Set(lines.map((l) => l.sellerId))];
-  const provider = getPaymentProvider(
-    input.paymentMethod === 'MOCK' ? 'mock' : env.PAYMENT_PROVIDER || 'fdi',
-  );
+  const provider = getPaymentProvider();
 
   const result = await prisma.$transaction(async (tx) => {
     const orderNumber = await nextOrderNumber(tx);
@@ -403,13 +402,10 @@ async function failCheckoutPayment(orderId: string, paymentId: string, reason: s
 }
 
 export async function confirmPaymentFromWebhook(
-  providerCode: string,
   headers: Record<string, string | string[] | undefined>,
   body: unknown,
 ) {
-  const provider = getPaymentProvider(
-    providerCode === 'fdi' || providerCode === 'mock' ? providerCode : env.PAYMENT_PROVIDER,
-  );
+  const provider = getPaymentProvider();
   const verified = await provider.verifyWebhook(headers, body);
   if (!verified.providerRef || verified.providerRef === 'UNKNOWN') {
     throw Errors.validation('Webhook missing payment reference');
@@ -418,7 +414,7 @@ export async function confirmPaymentFromWebhook(
     return { duplicate: false, status: 'PENDING' };
   }
   const payloadHash = createHash('sha256')
-    .update(JSON.stringify({ providerCode, ...verified, body }))
+    .update(JSON.stringify({ providerCode: provider.code, ...verified, body }))
     .digest('hex');
 
   const existingWebhook = await prisma.paymentWebhook.findUnique({
@@ -446,6 +442,18 @@ export async function confirmPaymentFromWebhook(
 
   if (!payment) throw Errors.notFound('Payment');
 
+  if (
+    verified.status === 'PAID' &&
+    verified.amount !== undefined &&
+    BigInt(Math.round(verified.amount)) < payment.amount
+  ) {
+    logger.error(
+      { paymentId: payment.id, expected: String(payment.amount), received: verified.amount },
+      'Mobile Money amount is lower than the order total; payment not confirmed',
+    );
+    throw Errors.conflict('Received amount does not match the order total');
+  }
+
   await prisma.paymentWebhook.create({
     data: {
       paymentId: payment.id,
@@ -458,6 +466,9 @@ export async function confirmPaymentFromWebhook(
 
   if (payment.status === 'PAID') {
     return { duplicate: true, status: 'PAID' };
+  }
+  if (payment.status === 'FAILED' || payment.status === 'CANCELLED') {
+    return { duplicate: true, status: payment.status };
   }
 
   if (verified.status === 'FAILED' || verified.status === 'CANCELLED') {
@@ -586,23 +597,6 @@ export async function confirmPaymentFromWebhook(
   return { duplicate: false, status: 'PAID' };
 }
 
-/** Dev/demo helper: simulate MoMo/Airtel success without external provider */
-export async function mockPayOrder(userId: string, orderId: string) {
-  const order = await prisma.order.findFirst({
-    where: { id: orderId, customerId: userId },
-    include: { payments: true },
-  });
-  if (!order) throw Errors.notFound('Order');
-  const payment = order.payments[0];
-  if (!payment?.providerRef) throw Errors.conflict('No payment to confirm');
-
-  return confirmPaymentFromWebhook('mock', {}, {
-    providerRef: payment.providerRef,
-    status: 'PAID',
-    amount: Number(payment.amount),
-  });
-}
-
 export async function verifyCustomerPayment(userId: string, paymentId: string) {
   const payment = await prisma.payment.findFirst({
     where: { id: paymentId, order: { customerId: userId } },
@@ -632,21 +626,8 @@ export async function verifyCustomerPayment(userId: string, paymentId: string) {
 
   if (!payment.providerRef) throw Errors.conflict('Payment has no provider reference yet');
 
-  if (payment.provider === 'fdi' || env.PAYMENT_PROVIDER === 'fdi') {
-    const { fdiGetTransaction } = await import('../providers/payment/fdi.client');
-    const live = await fdiGetTransaction(payment.providerRef);
-    if (live.status === 'SUCCESSFUL') {
-      await confirmPaymentFromWebhook('fdi', {}, {
-        status: 'success',
-        data: { state: 'successful', trxRef: payment.providerRef },
-      });
-    } else if (live.status === 'FAILED') {
-      await confirmPaymentFromWebhook('fdi', {}, {
-        status: 'fail',
-        data: { state: 'failed', trxRef: payment.providerRef, message: live.reason },
-      });
-    }
-  }
+  // The provider re-queries FDI for the live status, so this body only carries the reference.
+  await confirmPaymentFromWebhook({}, { data: { trxRef: payment.providerRef } });
 
   const refreshed = await prisma.payment.findUniqueOrThrow({
     where: { id: payment.id },
@@ -705,6 +686,32 @@ export async function getCustomerOrder(userId: string, orderId: string) {
   if (!order) throw Errors.notFound('Order');
   return {
     ...serializeMoneyOrder(order),
+    statusHistory: order.statusHistory,
+    deliveries: order.deliveries.map((d) => ({
+      ...d,
+      fee: String(d.fee),
+    })),
+  };
+}
+
+export async function getOrderForAdmin(orderId: string) {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      customer: { select: { id: true, fullName: true, email: true, phone: true } },
+      sellerOrders: { include: { seller: true, items: true } },
+      payments: true,
+      address: true,
+      statusHistory: { orderBy: { createdAt: 'asc' } },
+      deliveries: true,
+    },
+  });
+  if (!order) throw Errors.notFound('Order');
+  return {
+    ...serializeMoneyOrder(order),
+    customer: order.customer,
+    notes: order.notes,
+    couponCode: order.couponCode,
     statusHistory: order.statusHistory,
     deliveries: order.deliveries.map((d) => ({
       ...d,

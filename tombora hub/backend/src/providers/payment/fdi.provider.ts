@@ -1,12 +1,9 @@
-import { randomBytes } from 'node:crypto';
 import {
-  fdiConfigured,
+  buildTrxRef,
   fdiGetTransaction,
   fdiMomoPull,
   inferChannel,
-  normalizeMsisdn,
   parseFdiWebhook,
-  type FdiPullResult,
 } from './fdi.client';
 import type {
   PaymentCreateInput,
@@ -14,12 +11,6 @@ import type {
   PaymentProvider,
   PaymentWebhookResult,
 } from './payment-provider';
-
-function buildTrxRef(orderId: string) {
-  const short = orderId.replace(/-/g, '').slice(0, 10);
-  const rand = randomBytes(3).toString('hex');
-  return `nm_${short}_${rand}`;
-}
 
 export class FdiPaymentProvider implements PaymentProvider {
   readonly code = 'fdi';
@@ -30,9 +21,8 @@ export class FdiPaymentProvider implements PaymentProvider {
       throw new Error('A Mobile Money phone number is required to place this order');
     }
 
-    const trxRef = buildTrxRef(input.orderId);
-    const pull: FdiPullResult = await fdiMomoPull({
-      trxRef,
+    const pull = await fdiMomoPull({
+      trxRef: buildTrxRef('order', input.orderId),
       msisdn: phone,
       amount: input.amount,
       method: input.method,
@@ -47,14 +37,13 @@ export class FdiPaymentProvider implements PaymentProvider {
       raw: {
         gwRef: pull.gwRef,
         channelId: channel,
-        msisdn: pull.msisdn || normalizeMsisdn(phone),
+        msisdn: pull.msisdn,
         state: pull.state,
-        stub: pull.stub || !fdiConfigured(),
         instructions: {
           title: `Approve on ${network}`,
-          message: `A ${network} prompt was sent to ${pull.msisdn || phone}. Enter your PIN to complete payment.`,
+          message: `A ${network} prompt was sent to ${pull.msisdn}. Enter your PIN to complete payment.`,
           network,
-          phone: pull.msisdn || normalizeMsisdn(phone),
+          phone: pull.msisdn,
         },
       },
     };
@@ -78,9 +67,6 @@ export class FdiPaymentProvider implements PaymentProvider {
       };
     }
     if (live.status === 'FAILED') {
-      return { providerRef: parsed.providerRef, status: 'FAILED' };
-    }
-    if (parsed.status === 'FAILED') {
       return { providerRef: parsed.providerRef, status: 'FAILED' };
     }
     return { providerRef: parsed.providerRef, status: 'PENDING' };

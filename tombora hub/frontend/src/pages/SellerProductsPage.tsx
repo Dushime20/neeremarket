@@ -2,7 +2,21 @@ import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useDeleteProduct, useMe, useSellerProducts, useUpdateProduct } from '@/api/hooks';
-import { Alert, Badge, Button, EmptyState, TableSkeleton } from '@/components/ui';
+import {
+  ActionIconButton,
+  Alert,
+  Badge,
+  Button,
+  EmptyState,
+  SortTh,
+  TableBanner,
+  TableCard,
+  TablePagination,
+  TableSkeleton,
+  TableToolbar,
+  useConfirm,
+  useToast,
+} from '@/components/ui';
 import { getErrorMessage } from '@/api/client';
 import { formatRwf } from '@/utils/money';
 import { prettyStatus, statusTone } from '@/utils/status';
@@ -23,26 +37,46 @@ const FILTERS = [
 export function SellerProductsPage() {
   const navigate = useNavigate();
   const { data: user } = useMe();
+  const confirm = useConfirm();
+  const toast = useToast();
   const [params] = useSearchParams();
   const q = params.get('q') || '';
+  const [search, setSearch] = useState(q);
   const [status, setStatus] = useState('');
-  const { data, isLoading, isError, error } = useSellerProducts(status || undefined, q || undefined);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+  const { data, isLoading, isError, error } = useSellerProducts(status || undefined, search || undefined);
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
   const [banner, setBanner] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
+  const allProducts = data?.items || [];
+  const totalPages = Math.ceil(allProducts.length / pageSize);
+  const paginatedProducts = allProducts.slice((page - 1) * pageSize, page * pageSize);
+
   async function unpublish(id: string, name: string) {
-    if (!window.confirm(`Remove “${name}” from the marketplace? Shoppers will no longer see it.`)) return;
+    const ok = await confirm({
+      title: 'Remove from marketplace',
+      message: `Remove “${name}” from the marketplace? Shoppers will no longer see it.`,
+      confirmText: 'Remove listing',
+      tone: 'warning',
+    });
+    if (!ok) return;
+
     setActionError(null);
     setBanner(null);
     setBusyId(id);
     try {
       await updateProduct.mutateAsync({ id, unpublish: true });
-      setBanner(`“${name}” was removed from the market.`);
+      const msg = `“${name}” was removed from the market.`;
+      setBanner(msg);
+      toast.success(msg);
     } catch (err) {
-      setActionError(getErrorMessage(err, 'Could not remove listing from the market'));
+      const msg = getErrorMessage(err, 'Could not remove listing from the market');
+      setActionError(msg);
+      toast.error(msg);
     } finally {
       setBusyId(null);
     }
@@ -54,24 +88,39 @@ export function SellerProductsPage() {
     setBusyId(id);
     try {
       await updateProduct.mutateAsync({ id, relist: true });
-      setBanner(`“${name}” was submitted to go back on the market.`);
+      const msg = `“${name}” was submitted to go back on the market.`;
+      setBanner(msg);
+      toast.success(msg);
     } catch (err) {
-      setActionError(getErrorMessage(err, 'Could not relist product'));
+      const msg = getErrorMessage(err, 'Could not relist product');
+      setActionError(msg);
+      toast.error(msg);
     } finally {
       setBusyId(null);
     }
   }
 
   async function remove(id: string, name: string) {
-    if (!window.confirm(`Delete “${name}”? This cannot be undone from the catalog.`)) return;
+    const ok = await confirm({
+      title: 'Delete product',
+      message: `Delete “${name}”? This cannot be undone from the catalog.`,
+      confirmText: 'Delete permanently',
+      tone: 'danger',
+    });
+    if (!ok) return;
+
     setActionError(null);
     setBanner(null);
     setBusyId(id);
     try {
       await deleteProduct.mutateAsync(id);
-      setBanner(`“${name}” was deleted.`);
+      const msg = `“${name}” was deleted.`;
+      setBanner(msg);
+      toast.success(msg);
     } catch (err) {
-      setActionError(getErrorMessage(err, 'Could not delete product'));
+      const msg = getErrorMessage(err, 'Could not delete product');
+      setActionError(msg);
+      toast.error(msg);
     } finally {
       setBusyId(null);
     }
@@ -111,21 +160,46 @@ export function SellerProductsPage() {
         </Link>
       </header>
 
-      <section className={styles.panel}>
-        <div className={styles.panelHead}>
-          <div className={styles.filters} role="tablist" aria-label="Product status">
-            {FILTERS.map((f) => (
-              <button
-                key={f.id || 'all'}
-                type="button"
-                className={`${styles.chip} ${status === f.id ? styles.chipOn : ''}`}
-                onClick={() => setStatus(f.id)}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        </div>
+      <TableCard>
+        <TableBanner
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+              <path d="M3 6h18" />
+              <path d="M16 10a4 4 0 0 1-8 0" />
+            </svg>
+          }
+          title="Product Catalog & Inventory"
+          subtitle={
+            <span>
+              <strong>{data?.pagination.total ?? 0}</strong> products in catalog {search ? ` · matching “${search}”` : ''}
+            </span>
+          }
+          actions={
+            <Link to="/seller/products/new">
+              <Button type="button" size="sm">
+                + Add product
+              </Button>
+            </Link>
+          }
+        />
+        <TableToolbar
+          searchValue={search}
+          onSearchChange={(val) => {
+            setSearch(val);
+            setPage(1);
+          }}
+          searchPlaceholder="Search by product name, category..."
+          filterChips={FILTERS.map((f) => ({ id: f.id, label: f.label }))}
+          activeFilter={status}
+          onFilterChange={(id) => {
+            setStatus(id);
+            setPage(1);
+          }}
+          columnsAction={{
+            label: 'Columns',
+          }}
+        />
         {banner ? (
           <div className={styles.panelBody}>
             <Alert tone="success">{banner}</Alert>
@@ -146,7 +220,7 @@ export function SellerProductsPage() {
             <Alert tone="error">{getErrorMessage(error)}</Alert>
           </div>
         ) : null}
-        {!isLoading && !data?.items.length ? (
+        {!isLoading && !allProducts.length ? (
           <div className={styles.panelBody}>
             <EmptyState
               compact
@@ -157,21 +231,21 @@ export function SellerProductsPage() {
             />
           </div>
         ) : null}
-        {data?.items.length ? (
+        {allProducts.length ? (
           <div className={styles.tableWrap}>
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Product</th>
-                  <th>Category</th>
-                  <th>Price</th>
-                  <th>Stock</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                  <SortTh>Product</SortTh>
+                  <SortTh>Category</SortTh>
+                  <SortTh align="right">Price</SortTh>
+                  <SortTh>Stock</SortTh>
+                  <SortTh>Status</SortTh>
+                  <SortTh sortable={false}>Actions</SortTh>
                 </tr>
               </thead>
               <tbody>
-                {data.items.map((p) => {
+                {paginatedProducts.map((p) => {
                   const rowStatus = p.status;
                   const variants = p.variants || [];
                   const out = variants.filter((v) => (v.inventory?.available ?? v.inventory?.quantity ?? 0) <= 0)
@@ -222,47 +296,50 @@ export function SellerProductsPage() {
                       </td>
                       <td>
                         <div className={styles.actions}>
-                          <Link to={`/seller/products/${p.id}`}>
-                            <Button type="button" size="sm" variant="ghost">
-                              View
-                            </Button>
+                          <Link to={`/seller/products/${p.id}`} title="View product details">
+                            <ActionIconButton
+                              icon="view"
+                              tone="neutral"
+                              title="View product details"
+                              aria-label="View product details"
+                            />
                           </Link>
-                          <Link to={`/seller/products/${p.id}/edit`}>
-                            <Button type="button" size="sm" variant="secondary">
-                              Edit
-                            </Button>
+                          <Link to={`/seller/products/${p.id}/edit`} title="Edit product">
+                            <ActionIconButton
+                              icon="edit"
+                              tone="brand"
+                              title="Edit product"
+                              aria-label="Edit product"
+                            />
                           </Link>
                           {live ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
+                            <ActionIconButton
+                              icon="ban"
+                              tone="warning"
+                              title="Remove from market"
+                              aria-label="Remove from market"
                               disabled={rowBusy}
                               onClick={() => void unpublish(p.id, p.name)}
-                            >
-                              {rowBusy ? '…' : 'Remove from market'}
-                            </Button>
+                            />
                           ) : null}
                           {offMarket ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
+                            <ActionIconButton
+                              icon="check"
+                              tone="success"
+                              title="Relist on market"
+                              aria-label="Relist on market"
                               disabled={rowBusy}
                               onClick={() => void relist(p.id, p.name)}
-                            >
-                              {rowBusy ? '…' : 'Relist'}
-                            </Button>
+                            />
                           ) : null}
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="danger"
+                          <ActionIconButton
+                            icon="delete"
+                            tone="danger"
+                            title="Delete product"
+                            aria-label="Delete product"
                             disabled={rowBusy}
                             onClick={() => void remove(p.id, p.name)}
-                          >
-                            Delete
-                          </Button>
+                          />
                         </div>
                       </td>
                     </tr>
@@ -272,7 +349,14 @@ export function SellerProductsPage() {
             </table>
           </div>
         ) : null}
-      </section>
+        <TablePagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={allProducts.length}
+          pageSize={pageSize}
+          onPageChange={setPage}
+        />
+      </TableCard>
     </div>
   );
 }

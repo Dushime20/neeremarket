@@ -11,6 +11,10 @@ Production-oriented **multi-vendor marketplace for Rwanda** — modular monolith
 
 ## Quick start (Docker)
 
+# rebuild from scratch, ignoring Docker's cache (use after changing package.json)
+docker compose build --no-cache
+docker compose up -d
+
 ```bash
 cp .env.example .env
 docker compose up --build -d postgres redis backend

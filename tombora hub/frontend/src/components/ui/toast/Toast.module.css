@@ -1,0 +1,206 @@
+.container {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  pointer-events: none;
+  max-width: 420px;
+  width: calc(100vw - 2.5rem);
+}
+
+.toast {
+  pointer-events: auto;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem 0.95rem;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  box-shadow:
+    0 12px 32px -8px rgba(15, 23, 42, 0.14),
+    0 4px 12px -2px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+  animation: toastSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+}
+
+.toastDismissing {
+  animation: toastSlideOut 0.2s ease forwards;
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes toastSlideOut {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(30px) scale(0.94);
+  }
+}
+
+.iconWrap {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+}
+
+.iconWrap svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+/* Tone variants */
+.success {
+  border-color: rgba(107, 143, 107, 0.35);
+}
+
+.success .iconWrap {
+  background: #edf4ed;
+  color: #547354;
+}
+
+.error {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.error .iconWrap {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.warning {
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.warning .iconWrap {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.info {
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.info .iconWrap {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+  padding-top: 0.1rem;
+}
+
+.title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: #0f172a;
+  line-height: 1.35;
+}
+
+.message {
+  margin: 0.2rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #64748b;
+  word-break: break-word;
+}
+
+.closeBtn {
+  border: 0;
+  background: transparent;
+  padding: 0.2rem;
+  border-radius: 6px;
+  color: #94a3b8;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: color 0.15s ease, background 0.15s ease;
+  margin-top: 0.05rem;
+}
+
+.closeBtn:hover {
+  color: #334155;
+  background: #f1f5f9;
+}
+
+.closeBtn svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: currentColor;
+  opacity: 0.35;
+  animation: toastProgress linear forwards;
+}
+
+.success .progress {
+  color: #6b8f6b;
+}
+
+.error .progress {
+  color: #ef4444;
+}
+
+.warning .progress {
+  color: #f59e0b;
+}
+
+.info .progress {
+  color: #3b82f6;
+}
+
+@keyframes toastProgress {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+@media (max-width: 640px) {
+  .container {
+    top: 1rem;
+    right: 1rem;
+    left: 1rem;
+    width: auto;
+    max-width: none;
+  }
+
+  .toast {
+    padding: 0.75rem 0.85rem 0.85rem;
+  }
+}

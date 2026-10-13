@@ -31,9 +31,14 @@ adminFinanceRouter.post(
   asyncHandler(financeController.reviewPayout),
 );
 adminFinanceRouter.post(
-  '/payouts/:id/process',
+  '/payouts/:id/send',
   requirePermission('payouts.approve'),
-  asyncHandler(financeController.processPayout),
+  asyncHandler(financeController.sendPayout),
+);
+adminFinanceRouter.post(
+  '/payouts/:id/check',
+  requirePermission('payouts.approve', 'finance.read'),
+  asyncHandler(financeController.checkPayoutStatus),
 );
 adminFinanceRouter.get(
   '/returns',
@@ -44,4 +49,14 @@ adminFinanceRouter.post(
   '/returns/:id/review',
   requirePermission('payments.refund'),
   asyncHandler(financeController.reviewReturn),
+);
+adminFinanceRouter.post(
+  '/returns/:id/refund/send',
+  requirePermission('payments.refund'),
+  asyncHandler(financeController.retryRefund),
+);
+adminFinanceRouter.post(
+  '/returns/:id/refund/check',
+  requirePermission('payments.refund', 'orders.read'),
+  asyncHandler(financeController.checkRefundStatus),
 );

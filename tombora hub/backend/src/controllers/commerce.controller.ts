@@ -4,11 +4,13 @@ import { success } from '../shared/http';
 import * as cartService from '../services/cart.service';
 import * as addressService from '../services/address.service';
 import * as checkoutService from '../services/checkout.service';
+import * as financeService from '../services/finance.service';
+import * as returnsService from '../services/returns.service';
+import { parseFdiWebhook, trxKind } from '../providers/payment/fdi.client';
 import {
   addCartItemSchema,
   checkoutSchema,
   createAddressSchema,
-  paymentWebhookSchema,
   updateCartItemSchema,
 } from '../validators/commerce.validator';
 
@@ -71,21 +73,29 @@ export async function getOrder(req: Request, res: Response) {
   return success(res, { order });
 }
 
-export async function mockPay(req: Request, res: Response) {
+export async function confirmDelivery(req: Request, res: Response) {
   if (!req.user) throw Errors.unauthorized();
-  const result = await checkoutService.mockPayOrder(req.user.id, String(req.params.id));
-  return success(res, result, 'Payment confirmed');
+  const result = await financeService.confirmSellerOrderDelivery({
+    actorId: req.user.id,
+    customerId: req.user.id,
+    orderId: String(req.params.id),
+    sellerOrderId: String(req.params.sellerOrderId),
+  });
+  return success(res, result, 'Delivery confirmed');
 }
 
-export async function paymentWebhook(req: Request, res: Response) {
-  const provider = String(req.params.provider || 'mock');
-  paymentWebhookSchema.parse(req.body);
-  const result = await checkoutService.confirmPaymentFromWebhook(provider, req.headers, req.body);
-  return success(res, result, 'Webhook processed');
-}
-
+/** FDI posts collections, seller payouts and refunds to one URL; the trxRef prefix says which. */
 export async function fdiPaymentWebhook(req: Request, res: Response) {
-  const result = await checkoutService.confirmPaymentFromWebhook('fdi', req.headers, req.body);
+  const { providerRef } = parseFdiWebhook(req.body);
+  if (!providerRef) throw Errors.validation('Webhook missing payment reference');
+
+  const kind = trxKind(providerRef);
+  const result =
+    kind === 'payout'
+      ? await financeService.syncPayoutWithProvider(providerRef)
+      : kind === 'refund'
+        ? await returnsService.syncRefundWithProvider(providerRef)
+        : await checkoutService.confirmPaymentFromWebhook(req.headers, req.body);
   return success(res, result, 'FDI webhook processed');
 }
 

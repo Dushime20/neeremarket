@@ -1,5 +1,19 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { env } from '../../config/env';
+
+/** Prefixes let the shared FDI webhook tell order collections, seller payouts and refunds apart. */
+export const TRX_PREFIX = { order: 'nm', payout: 'payout', refund: 'refund' } as const;
+
+export function buildTrxRef(kind: keyof typeof TRX_PREFIX, id: string) {
+  const short = id.replace(/-/g, '').slice(0, 10);
+  return `${TRX_PREFIX[kind]}_${short}_${randomBytes(3).toString('hex')}`;
+}
+
+export function trxKind(ref: string): keyof typeof TRX_PREFIX {
+  if (ref.startsWith(`${TRX_PREFIX.payout}_`)) return 'payout';
+  if (ref.startsWith(`${TRX_PREFIX.refund}_`)) return 'refund';
+  return 'order';
+}
 
 const CHANNEL_MTN = 'momo-mtn-rw';
 const CHANNEL_AIRTEL = 'momo-airtel-rw';
@@ -22,6 +36,12 @@ function normalizeBaseUrl(url: string) {
 
 export function fdiConfigured() {
   return Boolean(env.FDI_APP_ID && env.FDI_APP_SECRET && env.FDI_COLLECTION_ACCOUNT_ID && env.FDI_BASE_URL);
+}
+
+function assertFdiConfigured() {
+  if (!fdiConfigured()) {
+    throw new Error('Mobile Money payments are not configured (missing FDI credentials)');
+  }
 }
 
 export function fdiApiUrl(path: string) {
@@ -141,52 +161,35 @@ function errorMessage(body: Json, fallback: string) {
   return String(data.message || body.message || fallback);
 }
 
-export type FdiPullResult = {
+export type FdiMomoResult = {
   trxRef: string;
   gwRef: string | null;
   state: string;
   channelId: string;
   msisdn: string;
-  stub: boolean;
 };
 
-export async function fdiMomoPull(input: {
-  trxRef: string;
-  msisdn: string;
-  amount: number;
-  method?: string;
-}): Promise<FdiPullResult> {
+async function fdiMomoTransfer(
+  direction: 'pull' | 'push',
+  input: { trxRef: string; msisdn: string; amount: number; method?: string },
+): Promise<FdiMomoResult> {
+  assertFdiConfigured();
   if (!isValidRwandaMsisdn(input.msisdn)) {
     throw new Error('Enter a valid Rwanda MoMo number (MTN 078/079 or Airtel 072/073)');
   }
   const amount = wholeRwf(input.amount);
-  if (amount < 100) throw new Error('Mobile money payments must be at least 100 RWF');
+  if (amount < 100) throw new Error('Mobile money transfers must be at least 100 RWF');
 
+  const accountId =
+    direction === 'pull' ? env.FDI_COLLECTION_ACCOUNT_ID : env.FDI_PAYOUT_ACCOUNT_ID || env.FDI_COLLECTION_ACCOUNT_ID;
   const channelId = inferChannel(input.msisdn, input.method);
   const msisdn = normalizeMsisdn(input.msisdn);
 
-  if (!fdiConfigured()) {
-    return {
-      trxRef: input.trxRef,
-      gwRef: `STUB-${input.trxRef}`,
-      state: 'processing',
-      channelId,
-      msisdn,
-      stub: true,
-    };
-  }
-
-  const payload: Json = {
-    trxRef: input.trxRef,
-    channelId,
-    accountId: env.FDI_COLLECTION_ACCOUNT_ID,
-    msisdn,
-    amount,
-  };
+  const payload: Json = { trxRef: input.trxRef, channelId, accountId, msisdn, amount };
   const callback = fdiWebhookUrl();
   if (callback) payload.callback = callback;
 
-  const { status, body } = await fdiRequest('POST', '/momo/pull', {
+  const { status, body } = await fdiRequest('POST', `/momo/${direction}`, {
     json: payload,
     idempotencyKey: input.trxRef,
   });
@@ -199,11 +202,21 @@ export async function fdiMomoPull(input: {
       state: String(data.state || 'processing'),
       channelId,
       msisdn,
-      stub: false,
     };
   }
 
-  throw new Error(errorMessage(body, `FDI collection failed (HTTP ${status})`));
+  const label = direction === 'pull' ? 'collection' : 'transfer';
+  throw new Error(errorMessage(body, `FDI ${label} failed (HTTP ${status})`));
+}
+
+/** Collect from a customer wallet into the platform collection account. */
+export function fdiMomoPull(input: { trxRef: string; msisdn: string; amount: number; method?: string }) {
+  return fdiMomoTransfer('pull', input);
+}
+
+/** Send from the platform payout account to a MoMo wallet (seller payouts, customer refunds). */
+export function fdiMomoPush(input: { trxRef: string; msisdn: string; amount: number; method?: string }) {
+  return fdiMomoTransfer('push', input);
 }
 
 export type FdiTrxStatus = 'SUCCESSFUL' | 'FAILED' | 'PENDING' | 'UNKNOWN';
@@ -214,16 +227,7 @@ export async function fdiGetTransaction(ref: string): Promise<{
   details?: Json;
 }> {
   if (!ref) return { status: 'UNKNOWN', reason: 'Missing transaction reference' };
-
-  if (!fdiConfigured()) {
-    if (String(ref).startsWith('STUB-') || String(ref).startsWith('nm_')) {
-      return {
-        status: 'SUCCESSFUL',
-        details: { trxRef: ref, trxStatus: 'successful', stub: true },
-      };
-    }
-    return { status: 'PENDING' };
-  }
+  assertFdiConfigured();
 
   const { status, body } = await fdiRequest('GET', `/momo/trx/${encodeURIComponent(ref)}/info`);
   const data = (body.data as Json) || {};
@@ -239,7 +243,7 @@ export async function fdiGetTransaction(ref: string): Promise<{
       details: data,
     };
   }
-  if (status === 404) return { status: 'PENDING', details: data };
+  if (status === 404) return { status: 'UNKNOWN', details: data };
   return { status: 'PENDING', details: data };
 }
 

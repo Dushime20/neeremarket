@@ -8,8 +8,19 @@ import {
 } from './commission.engine';
 import { assertOrderTransition } from './order-state';
 import { domainEvents } from '../events/bus';
+import { writeAuditLog } from './audit.service';
+import {
+  buildTrxRef,
+  fdiGetTransaction,
+  fdiMomoPush,
+  inferChannel,
+  isValidRwandaMsisdn,
+  normalizeMsisdn,
+} from '../providers/payment/fdi.client';
 
 type Tx = Prisma.TransactionClient;
+
+const MIN_MOMO_AMOUNT = 100;
 
 async function ensureWallet(tx: Tx, sellerId: string) {
   const existing = await tx.sellerWallet.findUnique({ where: { sellerId } });
@@ -231,13 +242,16 @@ export async function getSellerFinance(userId: string) {
   };
 }
 
-export async function requestPayout(
-  userId: string,
-  amount: number,
-  method: string,
-  destination: Record<string, unknown>,
-) {
-  if (amount <= 0) throw Errors.validation('Payout amount must be positive');
+export async function requestPayout(userId: string, amount: number, phone: string, ip?: string) {
+  if (amount < MIN_MOMO_AMOUNT) {
+    throw Errors.validation(`Withdrawals must be at least ${MIN_MOMO_AMOUNT} RWF`);
+  }
+  if (!isValidRwandaMsisdn(phone)) {
+    throw Errors.validation('Enter a valid Rwanda MoMo number (MTN 078/079 or Airtel 072/073)');
+  }
+  const msisdn = normalizeMsisdn(phone);
+  const method = inferChannel(msisdn).includes('airtel') ? 'AIRTEL_MONEY' : 'MTN_MOMO';
+  const destination = { phone: msisdn };
 
   return prisma.$transaction(async (tx) => {
     const seller = await tx.sellerProfile.findUnique({ where: { userId } });
@@ -260,7 +274,7 @@ export async function requestPayout(
         amount: amt,
         currency: env.DEFAULT_CURRENCY,
         method,
-        destination: destination as Prisma.InputJsonValue,
+        destination,
         status: 'REQUESTED',
       },
     });
@@ -278,6 +292,21 @@ export async function requestPayout(
       },
     });
 
+    await writeAuditLog({
+      actorId: userId,
+      action: 'payout.request',
+      entityType: 'PayoutRequest',
+      entityId: payout.id,
+      after: {
+        amount: String(amt),
+        currency: env.DEFAULT_CURRENCY,
+        method,
+        destination,
+      },
+      reason: `Seller requested withdrawal of ${amount} RWF`,
+      ip,
+    });
+
     return {
       ...payout,
       amount: String(payout.amount),
@@ -285,79 +314,224 @@ export async function requestPayout(
   });
 }
 
+async function restorePayoutFunds(tx: Tx, payout: { id: string; sellerId: string; amount: bigint; currency: string }, description: string) {
+  const wallet = await ensureWallet(tx, payout.sellerId);
+  await tx.sellerWallet.update({
+    where: { id: wallet.id },
+    data: { availableBalance: wallet.availableBalance + payout.amount },
+  });
+  await tx.sellerLedger.create({
+    data: {
+      sellerId: payout.sellerId,
+      entryType: 'ADJUSTMENT',
+      amount: payout.amount,
+      currency: payout.currency,
+      balanceBucket: 'AVAILABLE',
+      refType: 'PAYOUT',
+      refId: payout.id,
+      description,
+    },
+  });
+}
+
+function serializePayout<T extends { amount: bigint }>(payout: T) {
+  return { ...payout, amount: String(payout.amount) };
+}
+
+/** Approving a payout immediately sends the Mobile Money transfer. */
+async function assertNoTransferInFlight(payoutId: string) {
+  const attempts = await prisma.payoutTransaction.findMany({
+    where: { payoutRequestId: payoutId, status: 'INITIATED' },
+  });
+  for (const attempt of attempts) {
+    if (!attempt.providerRef) continue;
+    const live = await fdiGetTransaction(attempt.providerRef);
+    if (live.status === 'SUCCESSFUL' || live.status === 'PENDING') {
+      throw Errors.conflict('A transfer for this payout already reached Mobile Money; it cannot be cancelled');
+    }
+    await prisma.payoutTransaction.update({ where: { id: attempt.id }, data: { status: 'FAILED' } });
+  }
+}
+
 export async function reviewPayout(
   payoutId: string,
   action: 'APPROVE' | 'CANCEL',
   notes?: string,
+  actorId?: string,
+  ip?: string,
 ) {
-  return prisma.$transaction(async (tx) => {
+  if (action === 'CANCEL') await assertNoTransferInFlight(payoutId);
+
+  const reviewed = await prisma.$transaction(async (tx) => {
     const payout = await tx.payoutRequest.findUnique({ where: { id: payoutId } });
     if (!payout) throw Errors.notFound('Payout');
-    if (!['REQUESTED', 'UNDER_REVIEW'].includes(payout.status)) {
-      throw Errors.conflict(`Cannot review payout in status ${payout.status}`);
-    }
 
     if (action === 'CANCEL') {
-      const wallet = await ensureWallet(tx, payout.sellerId);
-      await tx.sellerWallet.update({
-        where: { id: wallet.id },
-        data: { availableBalance: wallet.availableBalance + payout.amount },
-      });
-      await tx.sellerLedger.create({
-        data: {
-          sellerId: payout.sellerId,
-          entryType: 'ADJUSTMENT',
-          amount: payout.amount,
-          currency: payout.currency,
-          balanceBucket: 'AVAILABLE',
-          refType: 'PAYOUT',
-          refId: payout.id,
-          description: 'Payout cancelled — funds restored',
-        },
-      });
-      return tx.payoutRequest.update({
+      // APPROVED payouts can still be cancelled when the transfer never reached FDI.
+      if (!['REQUESTED', 'UNDER_REVIEW', 'APPROVED'].includes(payout.status)) {
+        throw Errors.conflict(`Cannot cancel a payout in status ${payout.status}`);
+      }
+      await restorePayoutFunds(tx, payout, 'Payout cancelled — funds restored');
+      const updated = await tx.payoutRequest.update({
         where: { id: payoutId },
         data: { status: 'CANCELLED', reviewNotes: notes },
       });
+      await writeAuditLog({
+        actorId,
+        action: 'payout.cancel',
+        entityType: 'PayoutRequest',
+        entityId: payoutId,
+        before: { status: payout.status },
+        after: { status: 'CANCELLED', reviewNotes: notes },
+        reason: notes || 'Admin cancelled withdrawal request',
+        ip,
+      });
+      return updated;
     }
 
-    return tx.payoutRequest.update({
+    if (!['REQUESTED', 'UNDER_REVIEW'].includes(payout.status)) {
+      throw Errors.conflict(`Cannot approve a payout in status ${payout.status}`);
+    }
+    const updated = await tx.payoutRequest.update({
       where: { id: payoutId },
       data: { status: 'APPROVED', reviewNotes: notes },
     });
+    await writeAuditLog({
+      actorId,
+      action: 'payout.approve',
+      entityType: 'PayoutRequest',
+      entityId: payoutId,
+      before: { status: payout.status },
+      after: { status: 'APPROVED', reviewNotes: notes },
+      reason: notes || 'Admin approved withdrawal request',
+      ip,
+    });
+    return updated;
   });
+
+  if (action === 'APPROVE') return sendPayout(payoutId, actorId, ip);
+  return serializePayout(reviewed);
 }
 
-export async function processPayout(payoutId: string) {
-  return prisma.$transaction(async (tx) => {
-    const payout = await tx.payoutRequest.findUnique({ where: { id: payoutId } });
-    if (!payout) throw Errors.notFound('Payout');
-    if (payout.status !== 'APPROVED') {
-      throw Errors.conflict('Payout must be APPROVED before processing');
-    }
+/**
+ * Pushes an APPROVED payout to the seller's MoMo wallet. If the push call errors the payout
+ * returns to APPROVED and a retry reuses the same trxRef, so FDI's idempotency prevents a
+ * double transfer.
+ */
+export async function sendPayout(payoutId: string, actorId?: string, ip?: string) {
+  const claimed = await prisma.payoutRequest.updateMany({
+    where: { id: payoutId, status: 'APPROVED' },
+    data: { status: 'PROCESSING' },
+  });
+  if (claimed.count === 0) {
+    const exists = await prisma.payoutRequest.findUnique({ where: { id: payoutId } });
+    if (!exists) throw Errors.notFound('Payout');
+    throw Errors.conflict(`Payout must be APPROVED before sending (current: ${exists.status})`);
+  }
 
-    await tx.payoutRequest.update({
-      where: { id: payoutId },
-      data: { status: 'PROCESSING' },
-    });
+  await writeAuditLog({
+    actorId,
+    action: 'payout.send',
+    entityType: 'PayoutRequest',
+    entityId: payoutId,
+    reason: 'Payout dispatched to Mobile Money gateway',
+    ip,
+  });
 
-    await tx.payoutTransaction.create({
+  const payout = await prisma.payoutRequest.findUniqueOrThrow({ where: { id: payoutId } });
+  const phone = String((payout.destination as { phone?: string } | null)?.phone || '');
+
+  let attempt = await prisma.payoutTransaction.findFirst({
+    where: { payoutRequestId: payoutId, status: 'INITIATED' },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (!attempt) {
+    attempt = await prisma.payoutTransaction.create({
       data: {
         payoutRequestId: payoutId,
-        providerRef: `PAYOUT-${payoutId.slice(0, 8)}`,
-        status: 'PAID',
-        rawPayload: { simulated: true, method: payout.method },
+        providerRef: buildTrxRef('payout', payoutId),
+        status: 'INITIATED',
       },
     });
+  }
 
-    const updated = await tx.payoutRequest.update({
-      where: { id: payoutId },
-      data: { status: 'PAID', processedAt: new Date() },
+  try {
+    const push = await fdiMomoPush({
+      trxRef: attempt.providerRef!,
+      msisdn: phone,
+      amount: Number(payout.amount),
+      method: payout.method,
     });
+    await prisma.payoutTransaction.update({
+      where: { id: attempt.id },
+      data: { status: 'PENDING', rawPayload: push },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Mobile Money transfer failed';
+    await prisma.payoutRequest.update({
+      where: { id: payoutId },
+      data: { status: 'APPROVED', reviewNotes: `Transfer not sent: ${message}`.slice(0, 500) },
+    });
+    throw Errors.validation(`Payout approved but the transfer was not sent: ${message}`);
+  }
 
-    domainEvents.emit('PayoutCompleted', { payoutId });
-    return { ...updated, amount: String(updated.amount) };
+  const updated = await prisma.payoutRequest.findUniqueOrThrow({ where: { id: payoutId } });
+  return serializePayout(updated);
+}
+
+/** Reconciles a PROCESSING payout with FDI (called by the webhook and the admin "check status" action). */
+export async function syncPayoutWithProvider(providerRef: string) {
+  const attempt = await prisma.payoutTransaction.findFirst({
+    where: { providerRef },
+    include: { payoutRequest: true },
   });
+  if (!attempt) throw Errors.notFound('Payout transaction');
+  const payout = attempt.payoutRequest;
+  if (payout.status !== 'PROCESSING') return serializePayout(payout);
+
+  const live = await fdiGetTransaction(providerRef);
+  if (live.status === 'SUCCESSFUL') {
+    const done = await prisma.$transaction(async (tx) => {
+      const moved = await tx.payoutRequest.updateMany({
+        where: { id: payout.id, status: 'PROCESSING' },
+        data: { status: 'PAID', processedAt: new Date() },
+      });
+      if (moved.count === 0) return false;
+      await tx.payoutTransaction.update({
+        where: { id: attempt.id },
+        data: { status: 'PAID', rawPayload: (live.details || {}) as Prisma.InputJsonValue },
+      });
+      return true;
+    });
+    if (done) domainEvents.emit('PayoutCompleted', { payoutId: payout.id });
+  } else if (live.status === 'FAILED') {
+    const done = await prisma.$transaction(async (tx) => {
+      const moved = await tx.payoutRequest.updateMany({
+        where: { id: payout.id, status: 'PROCESSING' },
+        data: { status: 'FAILED', reviewNotes: live.reason?.slice(0, 500) },
+      });
+      if (moved.count === 0) return false;
+      await tx.payoutTransaction.update({
+        where: { id: attempt.id },
+        data: { status: 'FAILED', rawPayload: (live.details || {}) as Prisma.InputJsonValue },
+      });
+      await restorePayoutFunds(tx, payout, 'Payout failed — funds restored');
+      return true;
+    });
+    if (done) domainEvents.emit('PayoutFailed', { payoutId: payout.id, reason: live.reason });
+  }
+
+  const refreshed = await prisma.payoutRequest.findUniqueOrThrow({ where: { id: payout.id } });
+  return serializePayout(refreshed);
+}
+
+export async function checkPayoutStatus(payoutId: string) {
+  const attempt = await prisma.payoutTransaction.findFirst({
+    where: { payoutRequestId: payoutId, status: { in: ['PENDING', 'PAID', 'FAILED'] } },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (!attempt?.providerRef) throw Errors.conflict('This payout has not been sent yet');
+  return syncPayoutWithProvider(attempt.providerRef);
 }
 
 export async function listPayoutsForAdmin(status?: string) {
@@ -375,18 +549,23 @@ export async function listPayoutsForAdmin(status?: string) {
   }));
 }
 
+/** Sellers can move a parcel up to "shipped"; only the customer (or an admin) confirms delivery. */
+export type SellerFulfilmentStatus = 'PROCESSING' | 'READY_FOR_SHIPMENT' | 'SHIPPED' | 'OUT_FOR_DELIVERY';
+
+const AWAITING_RECEIPT = ['SHIPPED', 'OUT_FOR_DELIVERY'];
+const ACTIVE_DISPUTE = ['OPEN', 'SELLER_RESPONDED', 'ESCALATED'] as const;
+
 export async function updateSellerOrderStatus(
   userId: string,
   sellerOrderId: string,
-  toStatus: 'PROCESSING' | 'READY_FOR_SHIPMENT' | 'SHIPPED' | 'DELIVERED',
+  toStatus: SellerFulfilmentStatus,
 ) {
   const seller = await prisma.sellerProfile.findUnique({ where: { userId } });
   if (!seller) throw Errors.notFound('Seller profile');
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const sellerOrder = await tx.sellerOrder.findFirst({
       where: { id: sellerOrderId, sellerId: seller.id },
-      include: { order: true },
     });
     if (!sellerOrder) throw Errors.notFound('Seller order');
 
@@ -396,36 +575,6 @@ export async function updateSellerOrderStatus(
       where: { id: sellerOrderId },
       data: { status: toStatus },
     });
-
-    if (toStatus === 'DELIVERED') {
-      await releaseSellerOrderEarnings(tx, sellerOrderId);
-
-      const siblings = await tx.sellerOrder.findMany({
-        where: { orderId: sellerOrder.orderId },
-      });
-      const allDelivered = siblings.every(
-        (s) =>
-          s.id === sellerOrderId ||
-          ['DELIVERED', 'COMPLETED', 'CANCELLED', 'REFUNDED'].includes(s.status),
-      );
-
-      if (allDelivered && canMoveParent(sellerOrder.order.status, 'DELIVERED')) {
-        await tx.order.update({
-          where: { id: sellerOrder.orderId },
-          data: { status: 'DELIVERED' },
-        });
-        await tx.orderStatusHistory.create({
-          data: {
-            orderId: sellerOrder.orderId,
-            fromStatus: sellerOrder.order.status,
-            toStatus: 'DELIVERED',
-            actorId: userId,
-            reason: 'All seller orders delivered',
-          },
-        });
-        domainEvents.emit('OrderDelivered', { orderId: sellerOrder.orderId });
-      }
-    }
 
     const updated = await tx.sellerOrder.findUniqueOrThrow({
       where: { id: sellerOrderId },
@@ -446,6 +595,85 @@ export async function updateSellerOrderStatus(
       })),
     };
   });
+
+  if (toStatus === 'SHIPPED') domainEvents.emit('SellerOrderShipped', { sellerOrderId });
+  return result;
+}
+
+/**
+ * The customer confirms a parcel arrived (or an admin does so on their behalf). This is the
+ * only path that moves the seller's held earnings into their available balance.
+ */
+export async function confirmSellerOrderDelivery(input: {
+  actorId: string;
+  orderId: string;
+  sellerOrderId: string;
+  /** Set for customer calls so they can only confirm their own orders; omitted for admins. */
+  customerId?: string;
+}) {
+  const { actorId, orderId, sellerOrderId, customerId } = input;
+
+  const { orderDelivered } = await prisma.$transaction(async (tx) => {
+    const sellerOrder = await tx.sellerOrder.findFirst({
+      where: {
+        id: sellerOrderId,
+        orderId,
+        ...(customerId ? { order: { customerId } } : {}),
+      },
+      include: {
+        order: true,
+        disputes: { where: { status: { in: [...ACTIVE_DISPUTE] } }, select: { id: true } },
+      },
+    });
+    if (!sellerOrder) throw Errors.notFound('Seller order');
+    if (!AWAITING_RECEIPT.includes(sellerOrder.status)) {
+      throw Errors.conflict(
+        sellerOrder.status === 'DELIVERED'
+          ? 'Delivery was already confirmed for this parcel'
+          : 'This parcel has not been shipped yet',
+      );
+    }
+    if (sellerOrder.disputes.length) {
+      throw Errors.conflict('Resolve the open dispute on this parcel before confirming delivery');
+    }
+
+    assertOrderTransition(sellerOrder.status, 'DELIVERED');
+    await tx.sellerOrder.update({
+      where: { id: sellerOrderId },
+      data: { status: 'DELIVERED' },
+    });
+    await releaseSellerOrderEarnings(tx, sellerOrderId);
+
+    const siblings = await tx.sellerOrder.findMany({ where: { orderId } });
+    const allDone = siblings.every(
+      (s) =>
+        s.id === sellerOrderId || ['DELIVERED', 'COMPLETED', 'CANCELLED', 'REFUNDED'].includes(s.status),
+    );
+    if (!allDone || !canMoveParent(sellerOrder.order.status, 'DELIVERED')) {
+      return { orderDelivered: false };
+    }
+
+    const now = new Date();
+    await tx.order.update({ where: { id: orderId }, data: { status: 'DELIVERED' } });
+    await tx.delivery.updateMany({
+      where: { orderId, status: { notIn: ['DELIVERED', 'CANCELLED'] } },
+      data: { status: 'DELIVERED', deliveredAt: now },
+    });
+    await tx.orderStatusHistory.create({
+      data: {
+        orderId,
+        fromStatus: sellerOrder.order.status,
+        toStatus: 'DELIVERED',
+        actorId,
+        reason: customerId ? 'Customer confirmed delivery' : 'Admin confirmed delivery',
+      },
+    });
+    return { orderDelivered: true };
+  });
+
+  domainEvents.emit('SellerOrderDelivered', { sellerOrderId });
+  if (orderDelivered) domainEvents.emit('OrderDelivered', { orderId });
+  return { sellerOrderId, orderDelivered };
 }
 
 function canMoveParent(from: string, to: string) {

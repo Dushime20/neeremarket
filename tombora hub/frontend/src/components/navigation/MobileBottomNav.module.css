@@ -10,7 +10,7 @@
     bottom: 0;
     z-index: 50;
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     height: calc(3.65rem + env(safe-area-inset-bottom, 0px));
     padding-bottom: env(safe-area-inset-bottom, 0px);
     background: #fff;
@@ -50,8 +50,8 @@
   }
 
   .label {
-    font-size: 11px;
-    font-weight: 500;
+    font-size: var(--text-2xs);
+    font-weight: var(--weight-medium);
     line-height: 1;
     white-space: nowrap;
   }
@@ -68,8 +68,8 @@
     place-items: center;
     background: var(--color-brand);
     color: #fff;
-    font-size: 11px;
-    font-weight: 700;
+    font-size: var(--text-2xs);
+    font-weight: var(--weight-semibold);
     line-height: 1;
     border: 2px solid #fff;
     box-sizing: content-box;

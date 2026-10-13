@@ -6,7 +6,7 @@ export type PaymentCreateInput = {
   orderId: string;
   customerPhone?: string;
   idempotencyKey: string;
-  method: 'MTN_MOMO' | 'AIRTEL_MONEY' | 'CARD' | 'MOCK';
+  method: 'MTN_MOMO' | 'AIRTEL_MONEY';
 };
 
 export type PaymentCreateResult = {
@@ -30,45 +30,6 @@ export interface PaymentProvider {
   ): Promise<PaymentWebhookResult>;
 }
 
-export class MockPaymentProvider implements PaymentProvider {
-  readonly code = 'mock';
-
-  async createPayment(input: PaymentCreateInput): Promise<PaymentCreateResult> {
-    return {
-      providerRef: `MOCK-${input.idempotencyKey}`,
-      status: 'PENDING',
-      raw: {
-        simulated: true,
-        instructions: {
-          title: 'Demo payment',
-          message: 'Use the confirm button to simulate a successful Mobile Money payment.',
-          network: 'Demo',
-          phone: input.customerPhone || '',
-        },
-      },
-    };
-  }
-
-  async verifyWebhook(
-    _headers: Record<string, string | string[] | undefined>,
-    body: unknown,
-  ): Promise<PaymentWebhookResult> {
-    const payload = body as { providerRef?: string; status?: string; amount?: number };
-    return {
-      providerRef: payload.providerRef || 'UNKNOWN',
-      status: (payload.status as PaymentWebhookResult['status']) || 'PAID',
-      amount: payload.amount,
-    };
-  }
-}
-
-export function getPaymentProvider(code: string): PaymentProvider {
-  switch ((code || '').toLowerCase()) {
-    case 'fdi':
-      return new FdiPaymentProvider();
-    case 'mock':
-      return new MockPaymentProvider();
-    default:
-      return new FdiPaymentProvider();
-  }
+export function getPaymentProvider(): PaymentProvider {
+  return new FdiPaymentProvider();
 }

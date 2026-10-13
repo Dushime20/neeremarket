@@ -39,5 +39,6 @@ notificationRouter.post(
 export const messageRouter = Router();
 messageRouter.use(requireAuth);
 messageRouter.get('/threads', asyncHandler(engagementController.listThreads));
+messageRouter.get('/sellers', asyncHandler(engagementController.listMessageableSellers));
 messageRouter.get('/threads/:id', asyncHandler(engagementController.getThread));
 messageRouter.post('/', asyncHandler(engagementController.sendMessage));

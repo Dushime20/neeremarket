@@ -21,7 +21,7 @@
 .card p {
   margin: 0.25rem 0 0;
   color: var(--color-ink-muted);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
 }
 
 @media (max-width: 640px) {

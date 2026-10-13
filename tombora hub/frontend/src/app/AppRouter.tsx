@@ -45,6 +45,12 @@ import { OnlineServicePage } from '@/pages/OnlineServicePage';
 import { MobileAppPage } from '@/pages/MobileAppPage';
 import { ImageSearchPage } from '@/pages/ImageSearchPage';
 import { NewArrivalsPage } from '@/pages/NewArrivalsPage';
+import { DisputesPage } from '@/pages/DisputesPage';
+import { NewDisputePage } from '@/pages/NewDisputePage';
+import { DisputeDetailPage } from '@/pages/DisputeDetailPage';
+import { SellerDisputeDetailPage } from '@/pages/SellerDisputeDetailPage';
+import { AdminDisputeDetailPage } from '@/pages/AdminDisputeDetailPage';
+import { AdminOrderDetailPage } from '@/pages/AdminOrderDetailPage';
 
 export function AppRouter() {
   return (
@@ -63,6 +69,7 @@ export function AppRouter() {
           <Route path="seller/messages" element={<InboxPage basePath="/seller/messages" />} />
           <Route path="seller/messages/:threadId" element={<InboxPage basePath="/seller/messages" />} />
           <Route path="seller/disputes" element={<SellerDisputesPage />} />
+          <Route path="seller/disputes/:id" element={<SellerDisputeDetailPage />} />
           <Route path="seller/notifications" element={<AlertsPage />} />
           <Route path="seller/onboarding" element={<SellerOnboardingPage />} />
           <Route path="seller/profile" element={<SellerProfilePage />} />
@@ -72,6 +79,8 @@ export function AppRouter() {
           <Route path="admin/messages" element={<InboxPage basePath="/admin/messages" scopeAll />} />
           <Route path="admin/messages/:threadId" element={<InboxPage basePath="/admin/messages" scopeAll />} />
           <Route path="admin/notifications" element={<AlertsPage />} />
+          <Route path="admin/disputes/:id" element={<AdminDisputeDetailPage />} />
+          <Route path="admin/orders/:id" element={<AdminOrderDetailPage />} />
           <Route path="admin/:section" element={<AdminPage />} />
         </Route>
         <Route element={<AuthLayout />}>
@@ -93,11 +102,15 @@ export function AppRouter() {
           <Route path="wishlist" element={<WishlistPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="messages" element={<MessagesPage />} />
+          <Route path="messages/new/:sellerId" element={<MessagesPage />} />
           <Route path="messages/:threadId" element={<MessagesPage />} />
           <Route path="cart" element={<CartPage />} />
           <Route path="checkout" element={<CheckoutPage />} />
           <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/:id" element={<OrderDetailPage />} />
+          <Route path="disputes" element={<DisputesPage />} />
+          <Route path="disputes/new" element={<NewDisputePage />} />
+          <Route path="disputes/:id" element={<DisputeDetailPage />} />
           <Route path="account" element={<AccountPage />} />
           <Route path="why-neeremarket" element={<WhyTomboraPage />} />
           <Route path="why-tombora" element={<Navigate to="/why-neeremarket" replace />} />

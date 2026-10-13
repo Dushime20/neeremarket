@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useRequestPayout, useSellerFinance } from '@/api/hooks';
-import { Alert, Badge, Button, EmptyState, Input, TableSkeleton } from '@/components/ui';
+import { Alert, Badge, Button, EmptyState, Input, TablePagination, TableSkeleton } from '@/components/ui';
 import { getErrorMessage } from '@/api/client';
 import { formatRwf } from '@/utils/money';
 import { prettyStatus, statusTone } from '@/utils/status';
@@ -12,7 +12,10 @@ export function SellerFinancePage() {
   const { data: finance, isLoading, isError, error } = useSellerFinance();
   const requestPayout = useRequestPayout();
   const [amount, setAmount] = useState('');
-  const [phone, setPhone] = useState('+250780000003');
+  const [phone, setPhone] = useState('');
+  const [payoutPage, setPayoutPage] = useState(1);
+  const [ledgerPage, setLedgerPage] = useState(1);
+  const pageSize = 10;
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -21,12 +24,8 @@ export function SellerFinancePage() {
     setMsg(null);
     setErr(null);
     try {
-      await requestPayout.mutateAsync({
-        amount: Number(amount),
-        method: 'MTN_MOMO',
-        destination: { phone },
-      });
-      setMsg('Payout requested. Admin can approve and process it.');
+      await requestPayout.mutateAsync({ amount: Number(amount), destination: { phone } });
+      setMsg('Withdrawal requested. Once NeereMarket approves it, the money is sent to your Mobile Money wallet.');
       setAmount('');
     } catch (ex) {
       setErr(getErrorMessage(ex));
@@ -70,10 +69,10 @@ export function SellerFinancePage() {
                 <span className={styles.kpiIcon} data-tone="warn">
                   <MetricIcon path={ICONS.hold} />
                 </span>
-                <span>Pending</span>
+                <span>On hold</span>
               </div>
               <strong>{formatRwf(finance.wallet.pendingBalance)}</strong>
-              <em>Not yet settled</em>
+              <em>Released when customers confirm delivery</em>
             </article>
             <article className={styles.kpi}>
               <div className={styles.kpiHead}>
@@ -107,15 +106,17 @@ export function SellerFinancePage() {
                   <Input
                     label="Amount (RWF)"
                     type="number"
-                    min={1}
+                    min={100}
+                    max={Number(finance.wallet.availableBalance) || undefined}
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     required
                   />
                   <Input
-                    label="MTN MoMo phone"
+                    label="MTN MoMo or Airtel Money number"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
+                    placeholder="0780 000 000"
                     required
                   />
                   <Button type="submit" disabled={requestPayout.isPending}>
@@ -134,28 +135,39 @@ export function SellerFinancePage() {
                   <EmptyState title="No payouts yet" />
                 </div>
               ) : (
-                <div className={styles.tableWrap}>
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        <th>Amount</th>
-                        <th>Method</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {finance.payouts.map((p) => (
-                        <tr key={p.id}>
-                          <td className={styles.num}>{formatRwf(p.amount)}</td>
-                          <td>{p.method.replace(/_/g, ' ')}</td>
-                          <td>
-                            <Badge tone={statusTone(p.status)}>{prettyStatus(p.status)}</Badge>
-                          </td>
+                <>
+                  <div className={styles.tableWrap}>
+                    <table className={styles.table}>
+                      <thead>
+                        <tr>
+                          <th>Amount</th>
+                          <th>Method</th>
+                          <th>Status</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {(finance.payouts || [])
+                          .slice((payoutPage - 1) * pageSize, payoutPage * pageSize)
+                          .map((p) => (
+                            <tr key={p.id}>
+                              <td className={styles.num}>{formatRwf(p.amount)}</td>
+                              <td>{p.method.replace(/_/g, ' ')}</td>
+                              <td>
+                                <Badge tone={statusTone(p.status)}>{prettyStatus(p.status)}</Badge>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <TablePagination
+                    page={payoutPage}
+                    totalPages={Math.ceil((finance.payouts || []).length / pageSize)}
+                    totalItems={(finance.payouts || []).length}
+                    pageSize={pageSize}
+                    onPageChange={setPayoutPage}
+                  />
+                </>
               )}
             </article>
           </section>
@@ -172,31 +184,42 @@ export function SellerFinancePage() {
                 />
               </div>
             ) : (
-              <div className={styles.tableWrap}>
-                <table className={styles.table}>
-                  <thead>
-                    <tr>
-                      <th>Type</th>
-                      <th>Bucket</th>
-                      <th>Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {finance.ledger.map((e) => (
-                      <tr key={e.id}>
-                        <td>
-                          <strong>{prettyStatus(e.entryType)}</strong>
-                          <small>{e.description}</small>
-                        </td>
-                        <td>{prettyStatus(e.balanceBucket)}</td>
-                        <td className={`${styles.num} ${Number(e.amount) < 0 ? styles.neg : styles.pos}`}>
-                          {formatRwf(e.amount)}
-                        </td>
+              <>
+                <div className={styles.tableWrap}>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>Type</th>
+                        <th>Bucket</th>
+                        <th>Amount</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {(finance.ledger || [])
+                        .slice((ledgerPage - 1) * pageSize, ledgerPage * pageSize)
+                        .map((e) => (
+                          <tr key={e.id}>
+                            <td>
+                              <strong>{prettyStatus(e.entryType)}</strong>
+                              <small>{e.description}</small>
+                            </td>
+                            <td>{prettyStatus(e.balanceBucket)}</td>
+                            <td className={`${styles.num} ${Number(e.amount) < 0 ? styles.neg : styles.pos}`}>
+                              {formatRwf(e.amount)}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+                <TablePagination
+                  page={ledgerPage}
+                  totalPages={Math.ceil((finance.ledger || []).length / pageSize)}
+                  totalItems={(finance.ledger || []).length}
+                  pageSize={pageSize}
+                  onPageChange={setLedgerPage}
+                />
+              </>
             )}
           </section>
         </>

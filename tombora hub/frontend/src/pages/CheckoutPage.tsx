@@ -7,7 +7,6 @@ import {
   useCheckout,
   useCreateAddress,
   useMe,
-  useMockPay,
   useVerifyPayment,
 } from '@/api/hooks';
 import { Alert, Button, EmptyState, Input } from '@/components/ui';
@@ -20,7 +19,7 @@ function idempotencyKey() {
   return `chk_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-type PayMethod = 'MTN_MOMO' | 'AIRTEL_MONEY' | 'MOCK';
+type PayMethod = 'MTN_MOMO' | 'AIRTEL_MONEY';
 
 type PendingPayment = {
   orderId: string;
@@ -36,8 +35,6 @@ type PendingPayment = {
   } | null;
 };
 
-const isDev = import.meta.env.DEV;
-
 export function CheckoutPage() {
   const { data: user } = useMe();
   const { data: cart } = useCart();
@@ -45,7 +42,6 @@ export function CheckoutPage() {
   const createAddress = useCreateAddress();
   const checkout = useCheckout();
   const verifyPayment = useVerifyPayment();
-  const mockPay = useMockPay();
   const navigate = useNavigate();
 
   const [addressId, setAddressId] = useState('');
@@ -164,7 +160,7 @@ export function CheckoutPage() {
       return;
     }
     const momoPhone = (payerPhone || selectedAddress?.phone || phone).trim();
-    if (paymentMethod !== 'MOCK' && !momoPhone) {
+    if (!momoPhone) {
       setError('Enter the Mobile Money number that will pay for this order.');
       return;
     }
@@ -176,12 +172,6 @@ export function CheckoutPage() {
         customerPhone: momoPhone,
         idempotencyKey: idempotencyKey(),
       });
-
-      if (paymentMethod === 'MOCK') {
-        await mockPay.mutateAsync(result.order.id);
-        navigate(`/orders/${result.order.id}`);
-        return;
-      }
 
       setPending({
         orderId: result.order.id,
@@ -307,32 +297,21 @@ export function CheckoutPage() {
                 <strong>Airtel Money</strong>
                 <span>072 / 073 — USSD PIN on your phone</span>
               </button>
-              {isDev ? (
-                <button
-                  type="button"
-                  className={`${styles.payCard} ${paymentMethod === 'MOCK' ? styles.payCardOn : ''}`}
-                  onClick={() => setPaymentMethod('MOCK')}
-                >
-                  <strong>Demo pay</strong>
-                  <span>Instant confirm (development only)</span>
-                </button>
-              ) : null}
             </div>
-            {paymentMethod !== 'MOCK' ? (
-              <div className={styles.momoPhone}>
-                <Input
-                  label="Paying Mobile Money number"
-                  value={payerPhone}
-                  onChange={(e) => setPayerPhone(e.target.value)}
-                  placeholder="0780 000 000"
-                  required
-                />
-                <p className={styles.hint}>
-                  We send a {networkLabel} prompt to this number. Keep your phone unlocked and approve with
-                  your PIN.
-                </p>
-              </div>
-            ) : null}
+            <div className={styles.momoPhone}>
+              <Input
+                label="Paying Mobile Money number"
+                value={payerPhone}
+                onChange={(e) => setPayerPhone(e.target.value)}
+                placeholder="0780 000 000"
+                required
+              />
+              <p className={styles.hint}>
+                We send a {networkLabel} prompt to this number. Keep your phone unlocked and approve with
+                your PIN. NeereMarket holds your payment and only releases it to the seller after you
+                confirm delivery.
+              </p>
+            </div>
           </section>
         </div>
 
@@ -359,10 +338,10 @@ export function CheckoutPage() {
           </ul>
           <Button
             type="button"
-            disabled={checkout.isPending || mockPay.isPending || hasOutOfStock || Boolean(pending)}
+            disabled={checkout.isPending || hasOutOfStock || Boolean(pending)}
             onClick={() => void placeOrder()}
           >
-            {checkout.isPending || mockPay.isPending ? 'Starting payment…' : 'Place order & pay'}
+            {checkout.isPending ? 'Starting payment…' : 'Place order & pay'}
           </Button>
         </aside>
       </div>

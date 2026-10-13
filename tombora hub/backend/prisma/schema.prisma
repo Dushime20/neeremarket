@@ -161,6 +161,44 @@ enum NotificationChannel {
   WHATSAPP
 }
 
+enum DisputeType {
+  SHIPPING_DELAY
+  NOT_DELIVERED
+  DAMAGED_ITEM
+  WRONG_ITEM
+  MISSING_ITEM
+  NOT_AS_DESCRIBED
+  PAYMENT_ISSUE
+  SELLER_UNRESPONSIVE
+  OTHER
+}
+
+enum DisputeStatus {
+  OPEN
+  SELLER_RESPONDED
+  ESCALATED
+  RESOLVED
+  REJECTED
+  WITHDRAWN
+}
+
+enum DisputeResolution {
+  FULL_REFUND
+  PARTIAL_REFUND
+  REPLACEMENT
+  REDELIVERY
+  RETURN_AND_REFUND
+  NO_ACTION
+  OTHER
+}
+
+enum DisputeParty {
+  CUSTOMER
+  SELLER
+  ADMIN
+  SYSTEM
+}
+
 // ─── Identity & RBAC ─────────────────────────────────────────────────────────
 
 model User {
@@ -190,6 +228,9 @@ model User {
   reviews           Review[]
   notifications     Notification[]
   messagesSent      Message[]          @relation("MessagesSent")
+  disputes          Dispute[]          @relation("CustomerDisputes")
+  disputesResolved  Dispute[]          @relation("DisputesResolved")
+  disputeMessages   DisputeMessage[]
   auditLogs         AuditLog[]
   loginHistory      LoginHistory[]
 
@@ -308,6 +349,7 @@ model SellerProfile {
   sellerOrders   SellerOrder[]
   payoutRequests PayoutRequest[]
   reviews        Review[]             @relation("SellerReviews")
+  disputes       Dispute[]
 
   @@index([verificationStatus])
   @@index([district])
@@ -609,6 +651,7 @@ model Order {
   statusHistory  OrderStatusHistory[]
   deliveries     Delivery[]
   returns        ReturnRequest[]
+  disputes       Dispute[]
 
   @@index([customerId, createdAt])
   @@index([status])
@@ -629,8 +672,9 @@ model SellerOrder {
   updatedAt       DateTime    @updatedAt @map("updated_at")
 
   order   Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  seller  SellerProfile  @relation(fields: [sellerId], references: [id])
-  items   OrderItem[]
+  seller   SellerProfile  @relation(fields: [sellerId], references: [id])
+  items    OrderItem[]
+  disputes Dispute[]
 
   @@index([sellerId, status])
   @@index([orderId])
@@ -914,6 +958,60 @@ model Refund {
   payment       Payment        @relation(fields: [paymentId], references: [id])
 
   @@map("refunds")
+}
+
+// ─── Order disputes ──────────────────────────────────────────────────────────
+
+model Dispute {
+  id             String             @id @default(uuid()) @db.Uuid
+  disputeNumber  String             @unique @map("dispute_number")
+  orderId        String             @map("order_id") @db.Uuid
+  sellerOrderId  String             @map("seller_order_id") @db.Uuid
+  customerId     String             @map("customer_id") @db.Uuid
+  sellerId       String             @map("seller_id") @db.Uuid
+  type           DisputeType
+  status         DisputeStatus      @default(OPEN)
+  subject        String
+  description    String
+  desiredOutcome DisputeResolution? @map("desired_outcome")
+  evidenceUrls   String[]           @default([]) @map("evidence_urls")
+  resolution     DisputeResolution?
+  resolutionNote String?            @map("resolution_note")
+  refundAmount   BigInt?            @map("refund_amount")
+  resolvedById   String?            @map("resolved_by_id") @db.Uuid
+  escalatedAt    DateTime?          @map("escalated_at")
+  resolvedAt     DateTime?          @map("resolved_at")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  order       Order            @relation(fields: [orderId], references: [id])
+  sellerOrder SellerOrder      @relation(fields: [sellerOrderId], references: [id])
+  customer    User             @relation("CustomerDisputes", fields: [customerId], references: [id])
+  seller      SellerProfile    @relation(fields: [sellerId], references: [id])
+  resolvedBy  User?            @relation("DisputesResolved", fields: [resolvedById], references: [id])
+  messages    DisputeMessage[]
+
+  @@index([customerId, createdAt])
+  @@index([sellerId, status])
+  @@index([status, createdAt])
+  @@index([sellerOrderId])
+  @@map("disputes")
+}
+
+model DisputeMessage {
+  id          String       @id @default(uuid()) @db.Uuid
+  disputeId   String       @map("dispute_id") @db.Uuid
+  authorId    String?      @map("author_id") @db.Uuid
+  authorRole  DisputeParty @map("author_role")
+  body        String
+  attachments String[]     @default([])
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  dispute Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  author  User?   @relation(fields: [authorId], references: [id])
+
+  @@index([disputeId, createdAt])
+  @@map("dispute_messages")
 }
 
 // ─── Reviews / Wishlist / Promotions ─────────────────────────────────────────

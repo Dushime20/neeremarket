@@ -21,7 +21,7 @@
 
 .group h2 {
   font-family: var(--font-sans);
-  font-size: 0.95rem;
+  font-size: var(--text-md);
   margin: 0.25rem 0 0.5rem;
 }
 
@@ -29,7 +29,7 @@
   margin: 0.75rem 0 0;
   text-align: right;
   color: var(--color-ink-muted);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
 }
 
 .summary {
@@ -46,7 +46,7 @@
 
 .summary h2 {
   font-family: var(--font-sans);
-  font-size: 1.05rem;
+  font-size: var(--text-md);
   margin: 0;
 }
 
@@ -59,7 +59,7 @@
 .note {
   display: block !important;
   color: var(--color-ink-muted);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
 }
 
 @media (max-width: 860px) {

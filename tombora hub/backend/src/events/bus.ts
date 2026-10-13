@@ -6,6 +6,8 @@ export type DomainEventMap = {
   PaymentCompleted: { paymentId: string; orderId: string };
   PaymentFailed: { paymentId: string; orderId: string };
   OrderDelivered: { orderId: string };
+  SellerOrderShipped: { sellerOrderId: string };
+  SellerOrderDelivered: { sellerOrderId: string };
   OrderCancelled: { orderId: string };
   ProductCreated: { productId: string };
   ProductApproved: { productId: string };
@@ -13,6 +15,7 @@ export type DomainEventMap = {
   ReturnRequested: { returnId: string };
   RefundCompleted: { refundId: string };
   PayoutCompleted: { payoutId: string };
+  PayoutFailed: { payoutId: string; reason?: string };
   SellerVerified: { sellerId: string };
 };
 

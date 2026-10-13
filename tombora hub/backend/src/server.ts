@@ -3,8 +3,14 @@ import { env } from './config/env';
 import { logger } from './shared/logger';
 import { prisma } from './shared/prisma';
 import { registerNotificationListeners } from './services/notification.service';
+import { fdiConfigured, fdiWebhookUrl } from './providers/payment/fdi.client';
 
 async function main() {
+  if (!fdiConfigured()) {
+    logger.error('FDI credentials are missing: checkout, seller payouts and refunds will fail');
+  } else if (!fdiWebhookUrl()) {
+    logger.warn('FDI_CALLBACK_BASE_URL is not public; payments rely on polling and payouts/refunds need "Check status"');
+  }
   registerNotificationListeners();
   const app = createApp();
 

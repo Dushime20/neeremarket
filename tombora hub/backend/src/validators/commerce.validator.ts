@@ -33,18 +33,12 @@ export const checkoutSchema = z.object({
   deliveryMethod: z
     .enum(['SELLER_DELIVERY', 'PLATFORM_DELIVERY', 'THIRD_PARTY', 'CUSTOMER_PICKUP'])
     .default('SELLER_DELIVERY'),
-  paymentMethod: z.enum(['MTN_MOMO', 'AIRTEL_MONEY', 'MOCK']).default('MTN_MOMO'),
+  paymentMethod: z.enum(['MTN_MOMO', 'AIRTEL_MONEY']).default('MTN_MOMO'),
   customerPhone: z.string().optional(),
   couponCode: z.string().optional(),
   notes: z.string().max(500).optional(),
   idempotencyKey: z.string().min(8).max(120),
 });
-
-export const paymentWebhookSchema = z.object({
-  providerRef: z.string().min(1).optional(),
-  status: z.enum(['PAID', 'FAILED', 'CANCELLED', 'PENDING']).optional(),
-  amount: z.number().optional(),
-}).passthrough();
 
 export const verifyPaymentSchema = z.object({
   paymentId: z.string().uuid().optional(),

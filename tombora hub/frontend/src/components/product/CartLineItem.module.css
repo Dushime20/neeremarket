@@ -22,7 +22,7 @@
 
 .body h3 {
   font-family: var(--font-sans);
-  font-size: 1rem;
+  font-size: var(--text-md);
   margin: 0 0 0.25rem;
 }
 
@@ -30,14 +30,14 @@
 .price {
   margin: 0;
   color: var(--color-ink-muted);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
 }
 
 .oos {
   margin: 0.35rem 0 0;
   color: #b42318;
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
 }
 
 .actions {
@@ -49,7 +49,7 @@
 
 .lineTotal {
   margin: 0;
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
 }
 
 @media (max-width: 640px) {

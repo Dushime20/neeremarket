@@ -18,6 +18,7 @@ const PERMISSIONS = [
   'settings.update',
   'audit.read',
   'cms.update',
+  'disputes.manage',
 ];
 
 const ROLES: Record<string, string[]> = {
@@ -25,8 +26,8 @@ const ROLES: Record<string, string[]> = {
   ADMIN: PERMISSIONS.filter((p) => p !== 'settings.update'),
   FINANCE_ADMIN: ['payments.read', 'payments.refund', 'finance.read', 'payouts.approve', 'orders.read'],
   SELLER_ADMIN: ['sellers.approve', 'sellers.suspend', 'products.approve', 'orders.read'],
-  ORDER_ADMIN: ['orders.read', 'orders.update', 'payments.read'],
-  CUSTOMER_SUPPORT: ['orders.read', 'payments.read'],
+  ORDER_ADMIN: ['orders.read', 'orders.update', 'payments.read', 'disputes.manage'],
+  CUSTOMER_SUPPORT: ['orders.read', 'payments.read', 'disputes.manage'],
   CONTENT_ADMIN: ['cms.update', 'products.approve'],
   MARKETING_ADMIN: ['cms.update'],
   SELLER: [],

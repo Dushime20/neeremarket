@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useAdjustInventory, useMe, useSellerInventory, type InventoryRow } from '@/api/hooks';
-import { Alert, Badge, Button, EmptyState, Input, TableSkeleton } from '@/components/ui';
+import { Alert, Badge, Button, EmptyState, Input, TablePagination, TableSkeleton } from '@/components/ui';
 import { ICONS, MetricIcon } from '@/components/dashboard/metrics';
 import { getErrorMessage } from '@/api/client';
 import { prettyStatus, statusTone } from '@/utils/status';
@@ -226,33 +226,13 @@ export function SellerInventoryPage() {
               </tbody>
             </table>
           </div>
-          {data.pagination.totalPages > 1 ? (
-            <div className={styles.panelBody}>
-              <div className={styles.pagination}>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  disabled={page <= 1}
-                  onClick={() => setPage(page - 1)}
-                >
-                  Previous
-                </Button>
-                <span className={styles.muted}>
-                  Page {data.pagination.page} of {data.pagination.totalPages} · {data.pagination.total} stock lines
-                </span>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  disabled={page >= data.pagination.totalPages}
-                  onClick={() => setPage(page + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          ) : null}
+          <TablePagination
+            page={data.pagination.page}
+            totalPages={data.pagination.totalPages}
+            totalItems={data.pagination.total}
+            pageSize={10}
+            onPageChange={setPage}
+          />
           </>
         ) : null}
       </section>

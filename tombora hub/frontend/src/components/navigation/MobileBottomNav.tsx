@@ -70,6 +70,25 @@ export function MobileBottomNav({ unreadNotifications = 0, wishlistCount = 0 }: 
       </NavLink>
 
       <NavLink
+        to="/orders"
+        className={({ isActive }) => (isActive ? `${styles.item} ${styles.active}` : styles.item)}
+      >
+        <span className={styles.iconWrap}>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M6 3h12a1 1 0 0 1 1 1v16.5l-2.5-1.5-2.5 1.5-2-1.5-2 1.5-2.5-1.5L5 20.5V4a1 1 0 0 1 1-1z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinejoin="round"
+            />
+            <path d="M9 8h6M9 12h6M9 16h3" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+          </svg>
+        </span>
+        <span className={styles.label}>Orders</span>
+      </NavLink>
+
+      <NavLink
         to="/messages"
         className={({ isActive }) => (isActive ? `${styles.item} ${styles.active}` : styles.item)}
       >

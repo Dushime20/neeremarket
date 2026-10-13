@@ -23,13 +23,12 @@ export const orderRouter = Router();
 orderRouter.use(requireAuth);
 orderRouter.get('/', asyncHandler(commerceController.listOrders));
 orderRouter.get('/:id', asyncHandler(commerceController.getOrder));
-orderRouter.post('/:id/mock-pay', asyncHandler(commerceController.mockPay));
+orderRouter.post(
+  '/:id/seller-orders/:sellerOrderId/confirm-delivery',
+  asyncHandler(commerceController.confirmDelivery),
+);
 
 export const paymentRouter = Router();
-paymentRouter.post(
-  '/webhooks/:provider',
-  asyncHandler(commerceController.paymentWebhook),
-);
 paymentRouter.post(
   '/fdi/webhook',
   asyncHandler(commerceController.fdiPaymentWebhook),

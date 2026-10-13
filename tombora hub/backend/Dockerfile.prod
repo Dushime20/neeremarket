@@ -1,22 +1,21 @@
-FROM node:20-alpine AS deps
+FROM node:20-alpine AS base
 WORKDIR /app
-RUN apk add --no-cache openssl libc6-compat
+RUN for i in 1 2 3; do apk add --no-cache openssl libc6-compat && break || { echo "apk failed, retry $i"; sleep 5; }; done \
+  && apk info -e openssl libc6-compat
+
+FROM base AS deps
 COPY package.json package-lock.json* ./
 RUN npm ci || npm install
 COPY prisma ./prisma
 RUN npx prisma generate
 
-FROM node:20-alpine AS build
-WORKDIR /app
-RUN apk add --no-cache openssl libc6-compat
+FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build && npx prisma generate
 
-FROM node:20-alpine AS runner
-WORKDIR /app
+FROM base AS runner
 ENV NODE_ENV=production
-RUN apk add --no-cache openssl libc6-compat
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./package.json

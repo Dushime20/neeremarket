@@ -11,6 +11,10 @@ import {
   sellerOrderStatusSchema,
 } from '../validators/finance.validator';
 
+function clientIp(req: Request) {
+  return (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || undefined;
+}
+
 export async function getSellerFinance(req: Request, res: Response) {
   if (!req.user) throw Errors.unauthorized();
   const finance = await financeService.getSellerFinance(req.user.id);
@@ -23,8 +27,8 @@ export async function requestPayout(req: Request, res: Response) {
   const payout = await financeService.requestPayout(
     req.user.id,
     input.amount,
-    input.method,
-    input.destination,
+    input.destination.phone,
+    clientIp(req),
   );
   return success(res, { payout }, 'Payout requested', 201);
 }
@@ -52,13 +56,35 @@ export async function reviewPayout(req: Request, res: Response) {
     String(req.params.id),
     input.action,
     input.notes,
+    req.user?.id,
+    clientIp(req),
   );
-  return success(res, { payout: { ...payout, amount: String(payout.amount) } }, 'Payout reviewed');
+  const message = input.action === 'APPROVE' ? 'Payout approved and sent to Mobile Money' : 'Payout cancelled';
+  return success(res, { payout }, message);
 }
 
-export async function processPayout(req: Request, res: Response) {
-  const payout = await financeService.processPayout(String(req.params.id));
-  return success(res, { payout }, 'Payout processed');
+export async function sendPayout(req: Request, res: Response) {
+  const payout = await financeService.sendPayout(
+    String(req.params.id),
+    req.user?.id,
+    clientIp(req),
+  );
+  return success(res, { payout }, 'Payout sent to Mobile Money');
+}
+
+export async function checkPayoutStatus(req: Request, res: Response) {
+  const payout = await financeService.checkPayoutStatus(String(req.params.id));
+  return success(res, { payout });
+}
+
+export async function retryRefund(req: Request, res: Response) {
+  const result = await returnsService.sendReturnRefund(String(req.params.id));
+  return success(res, result, 'Refund sent to Mobile Money');
+}
+
+export async function checkRefundStatus(req: Request, res: Response) {
+  const result = await returnsService.checkReturnRefund(String(req.params.id));
+  return success(res, result);
 }
 
 export async function createReturn(req: Request, res: Response) {

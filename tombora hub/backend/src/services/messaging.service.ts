@@ -129,23 +129,87 @@ export async function listThreads(userId: string, all = false) {
       threads.map(async (t) => {
         const sellerProfile = await prisma.sellerProfile.findUnique({
           where: { id: t.sellerId },
-          select: { businessName: true, userId: true },
+          select: { businessName: true, userId: true, logoUrl: true },
         });
         const customer = await prisma.user.findUnique({
           where: { id: t.customerId },
           select: { fullName: true },
         });
+        const unreadCount = await prisma.message.count({
+          where: { threadId: t.id, senderId: { not: userId }, readAt: null },
+        });
         return {
           id: t.id,
+          sellerId: t.sellerId,
           productId: t.productId,
           orderId: t.orderId,
           updatedAt: t.updatedAt,
           sellerName: sellerProfile?.businessName,
+          sellerLogoUrl: sellerProfile?.logoUrl ?? null,
           customerName: customer?.fullName,
           lastMessage: t.messages[0] || null,
+          unreadCount,
         };
       }),
     ),
+  };
+}
+
+export async function listMessageableSellers(userId: string, q?: string) {
+  const term = q?.trim();
+  const stores = await prisma.store.findMany({
+    where: {
+      isActive: true,
+      deletedAt: null,
+      seller: { userId: { not: userId } },
+      ...(term
+        ? {
+            OR: [
+              { name: { contains: term, mode: 'insensitive' as const } },
+              { seller: { businessName: { contains: term, mode: 'insensitive' as const } } },
+            ],
+          }
+        : {}),
+    },
+    orderBy: { name: 'asc' },
+    take: 50,
+    select: {
+      name: true,
+      slug: true,
+      seller: {
+        select: {
+          id: true,
+          businessName: true,
+          logoUrl: true,
+          verificationStatus: true,
+          district: true,
+          marketLocation: true,
+        },
+      },
+    },
+  });
+
+  const threads = await prisma.messageThread.findMany({
+    where: { customerId: userId, sellerId: { in: stores.map((s) => s.seller.id) } },
+    orderBy: { updatedAt: 'desc' },
+    select: { id: true, sellerId: true },
+  });
+  const latestThreadBySeller = new Map<string, string>();
+  for (const t of threads) {
+    if (!latestThreadBySeller.has(t.sellerId)) latestThreadBySeller.set(t.sellerId, t.id);
+  }
+
+  return {
+    items: stores.map((s) => ({
+      sellerId: s.seller.id,
+      storeName: s.name,
+      storeSlug: s.slug,
+      businessName: s.seller.businessName,
+      logoUrl: s.seller.logoUrl,
+      verified: s.seller.verificationStatus === 'VERIFIED',
+      location: [s.seller.marketLocation, s.seller.district].filter(Boolean).join(' · ') || null,
+      threadId: latestThreadBySeller.get(s.seller.id) ?? null,
+    })),
   };
 }
 

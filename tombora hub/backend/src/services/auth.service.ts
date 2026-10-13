@@ -7,6 +7,7 @@ import { prisma } from '../shared/prisma';
 import type { AuthUser } from '../shared/middleware';
 import type { LoginInput, RegisterInput, GoogleAuthInput } from '../validators/auth.validator';
 import { uniqueSlug } from '../shared/serialize';
+import { writeAuditLog } from './audit.service';
 
 type TokenPayload = { sub: string; type: 'access' | 'refresh' };
 type RequestMeta = { ip?: string; userAgent?: string };
@@ -210,6 +211,15 @@ export async function registerUser(input: RegisterInput, meta?: RequestMeta) {
     await ensureSellerProfile(user.id, input.fullName);
   }
 
+  await writeAuditLog({
+    actorId: user.id,
+    action: 'user.register',
+    entityType: 'User',
+    entityId: user.id,
+    ip: meta?.ip,
+    reason: `Registered with role: ${input.role}`,
+  });
+
   const tokens = await issueTokenPair(user.id, meta);
   const authUser = await loadAuthUser(user.id);
   return { user: authUser, ...tokens };
@@ -249,6 +259,18 @@ export async function loginUser(input: LoginInput, meta?: RequestMeta) {
         lockedUntil: failed >= 5 ? new Date(Date.now() + 15 * 60 * 1000) : null,
       },
     });
+
+    if (failed >= 5) {
+      await writeAuditLog({
+        actorId: user.id,
+        action: 'user.locked',
+        entityType: 'User',
+        entityId: user.id,
+        ip: meta?.ip,
+        reason: `Account locked for 15m after ${failed} consecutive failed logins`,
+      });
+    }
+
     throw Errors.unauthorized('Invalid credentials');
   }
 
@@ -257,6 +279,15 @@ export async function loginUser(input: LoginInput, meta?: RequestMeta) {
   await prisma.user.update({
     where: { id: user.id },
     data: { failedLoginCount: 0, lockedUntil: null },
+  });
+
+  await writeAuditLog({
+    actorId: user.id,
+    action: 'user.login',
+    entityType: 'User',
+    entityId: user.id,
+    ip: meta?.ip,
+    reason: 'Standard password login',
   });
 
   const tokens = await issueTokenPair(user.id, meta);
@@ -318,6 +349,15 @@ export async function loginWithGoogle(input: GoogleAuthInput, meta?: RequestMeta
       ip: meta?.ip,
       userAgent: meta?.userAgent,
     },
+  });
+
+  await writeAuditLog({
+    actorId: user.id,
+    action: 'user.login_oauth',
+    entityType: 'User',
+    entityId: user.id,
+    ip: meta?.ip,
+    reason: 'Google OAuth authentication',
   });
 
   const tokens = await issueTokenPair(user.id, meta);

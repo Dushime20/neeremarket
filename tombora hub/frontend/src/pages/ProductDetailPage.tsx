@@ -11,7 +11,7 @@ import {
   useProducts,
   useSendMessage,
 } from '@/api/hooks';
-import { Alert, Badge, Button, ProductGridSkeleton } from '@/components/ui';
+import { Alert, Badge, Button, ProductGridSkeleton, useToast } from '@/components/ui';
 import { PriceDisplay, ProductGrid, QuantitySelector, VariantSelector } from '@/components/product';
 import gridStyles from '@/components/product/ProductGrid.module.css';
 import { getErrorMessage } from '@/api/client';
@@ -20,6 +20,7 @@ import styles from './ProductDetailPage.module.css';
 
 export function ProductDetailPage() {
   const { slug = '' } = useParams();
+  const toast = useToast();
   const { data: product, isLoading, isError, error } = useProduct(slug);
   const { data: user } = useMe();
   const { data: reviews } = useProductReviews(product?.id);
@@ -173,8 +174,11 @@ export function ProductDetailPage() {
     try {
       await addToCart.mutateAsync({ variantId, quantity: qty });
       setMessage('Added to cart');
+      toast.success('Added to your cart!', product?.name);
     } catch (err) {
-      setErrMsg(getErrorMessage(err, 'Could not add to cart'));
+      const msg = getErrorMessage(err, 'Could not add to cart');
+      setErrMsg(msg);
+      toast.error(msg);
     }
   }
 
@@ -187,8 +191,11 @@ export function ProductDetailPage() {
     try {
       await addWishlist.mutateAsync(variantId);
       setMessage('Saved to wishlist');
+      toast.success('Saved to your wishlist!', product?.name);
     } catch (err) {
-      setErrMsg(getErrorMessage(err));
+      const msg = getErrorMessage(err);
+      setErrMsg(msg);
+      toast.error(msg);
     }
   }
 

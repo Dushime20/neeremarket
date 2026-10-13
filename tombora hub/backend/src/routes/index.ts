@@ -20,6 +20,7 @@ import {
   wishlistRouter,
 } from './engagement.routes';
 import { adminRouter, cmsPublicRouter } from './admin.routes';
+import { adminDisputeRouter, disputeRouter, sellerDisputeRouter } from './dispute.routes';
 import { env } from '../config/env';
 
 export function registerRoutes(app: Express) {
@@ -29,13 +30,16 @@ export function registerRoutes(app: Express) {
   api.use('/sellers', sellerRouter);
   api.use('/sellers', sellerOrderRouter);
   api.use('/sellers', financeSellerRouter);
+  api.use('/sellers', sellerDisputeRouter);
   api.use('/cart', cartRouter);
   api.use('/addresses', addressRouter);
   api.use('/checkout', checkoutRouter);
   api.use('/orders', orderRouter);
   api.use('/payments', paymentRouter);
   api.use('/returns', returnsRouter);
+  api.use('/disputes', disputeRouter);
   api.use('/admin/finance', adminFinanceRouter);
+  api.use('/admin/disputes', adminDisputeRouter);
   api.use('/admin', adminRouter);
   api.use('/cms', cmsPublicRouter);
   api.use('/wishlist', wishlistRouter);
