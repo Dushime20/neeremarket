@@ -11,7 +11,8 @@ export type ActionIconType =
   | 'ban'
   | 'send'
   | 'refresh'
-  | 'plus';
+  | 'plus'
+  | 'unlock';
 
 export type ActionIconTone =
   | 'neutral'
@@ -49,6 +50,8 @@ function getDefaultTone(icon: ActionIconType): ActionIconTone {
       return 'warning';
     case 'plus':
       return 'brand';
+    case 'unlock':
+      return 'warning';
     default:
       return 'neutral';
   }
@@ -198,6 +201,13 @@ function renderIconSvg(icon: ActionIconType) {
             strokeLinecap="round"
             strokeLinejoin="round"
           />
+        </svg>
+      );
+    case 'unlock':
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+          <path d="M7 11V7a5 5 0 0 1 9.9-1" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
         </svg>
       );
   }

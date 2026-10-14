@@ -30,12 +30,7 @@ export function AlertsPage() {
       <Helmet>
         <title>Alerts | NeereMarket</title>
       </Helmet>
-      <header className={styles.pageHead}>
-        <div>
-          <p className={styles.kicker}>Inbox</p>
-          <h1>Alerts</h1>
-          <p>{data?.unreadCount || 0} unread notifications</p>
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
         <Button
           type="button"
           variant="secondary"
@@ -45,7 +40,7 @@ export function AlertsPage() {
         >
           Mark all read
         </Button>
-      </header>
+      </div>
       {isLoading ? <TableSkeleton /> : null}
       {isError ? <Alert tone="error">{getErrorMessage(error)}</Alert> : null}
       <section className={styles.panel}>

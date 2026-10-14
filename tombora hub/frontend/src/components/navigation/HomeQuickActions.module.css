@@ -8,8 +8,10 @@
   flex-direction: column;
   width: 3.25rem;
   background: #fff;
-  border: 1px solid #e5e5e5;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: none;
+  overflow: hidden;
 }
 
 .item {
@@ -30,7 +32,7 @@
 .item:hover,
 .item:focus-visible {
   color: var(--color-brand);
-  background: #fff8f2;
+  background: var(--color-brand-soft);
 }
 
 .icon {

@@ -1,20 +1,29 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100;200;300;400;500;600;700;800;900&display=swap');
 @import '@fontsource/geist-sans/latin.css';
 @import '@fontsource/geist-mono/latin.css';
 @import '@fontsource/cormorant-garamond/latin.css';
 
 :root {
-  /* Retail canvas — neutral so product photos pop */
+  /* Retail canvas & Brand Colors */
   --color-bg: #f4f5f7;
   --color-bg-elevated: #ffffff;
   --color-ink: #0f172a;
   --color-ink-muted: #64748b;
   --color-ink-subtle: #94a3b8;
-  /* Hot orange CTAs (Buy / Add to cart) */
+  --color-foreground: #0f172a;
+  --color-muted-foreground: #64748b;
+
+  /* Brand Colors from Guide */
+  --color-brand-sage: #668c65;
+  --color-brand-sage-alt: #6b8f6b;
+  --color-dark-brand: #0d182a;
+
+  /* CTAs & Secondary Accents - Ecommerce Primary Orange */
   --color-brand: #e85d04;
   --color-brand-deep: #c44d00;
   --color-brand-soft: #fff1e6;
   --color-brand-glow: rgba(232, 93, 4, 0.35);
-  /* Teal for trust / secondary accents */
   --color-accent: #0d9488;
   --color-accent-soft: #e6f7f5;
   --color-gold: #f5b700;
@@ -22,27 +31,58 @@
   --color-success: #15803d;
   --color-danger: #dc2626;
   --color-warning: #d97706;
-  --shadow-soft: 0 12px 32px rgba(26, 35, 50, 0.08);
-  --shadow-lift: 0 18px 44px rgba(232, 93, 4, 0.14);
+  --shadow-soft: none;
+  --shadow-lift: none;
   --radius: 12px;
   --radius-sm: 8px;
-  /* Fonts matching VowNests (vownests.com): Geist Sans (primary), Geist Mono, Cormorant Garamond */
-  --font-sans: 'Geist Sans', 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Typography System Guide - Font Families */
+  --font-geist-sans: 'Geist Sans', 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: var(--font-geist-sans);
+  --font-geist-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-mono: var(--font-geist-mono);
   --font-serif: 'Cormorant Garamond', Georgia, serif;
-  --font-display: var(--font-sans);
-  --text-3xs: 0.6875rem; /* 11px */
-  --text-2xs: 0.75rem;   /* 12px */
-  --text-xs: 0.75rem;    /* 12px */
-  --text-nav: 0.8125rem; /* 13px */
-  --text-sm: 0.875rem;   /* 14px */
-  --text-md: 1rem;       /* 16px */
-  --text-lg: 1.125rem;   /* 18px */
-  --text-xl: 1.25rem;    /* 20px */
-  --text-2xl: 1.5rem;    /* 24px */
-  --text-3xl: 1.875rem;  /* 30px */
-  --text-4xl: 2.25rem;   /* 36px */
-  --text-5xl: 3rem;      /* 48px */
+  --font-outfit: 'Outfit', sans-serif;
+  --font-display: var(--font-outfit);
+  --font-system-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif;
+
+  /* Typography System Guide - Text Size Scale (14px HTML Base) */
+  --text-xs: 0.75rem;     /* 10.5px */
+  --text-sm: 0.875rem;    /* 12.25px */
+  --text-base: 1rem;      /* 14px (default body) */
+  --text-md: 1rem;        /* 14px */
+  --text-lg: 1.125rem;    /* 15.75px */
+  --text-xl: 1.25rem;     /* 17.5px */
+  --text-2xl: 1.5rem;     /* 21px */
+  --text-3xl: 1.875rem;   /* 26.25px */
+  --text-4xl: 2.25rem;    /* 31.5px */
+  --text-5xl: 3rem;       /* 42px */
+  --text-6xl: 3.75rem;    /* 52.5px */
+  --text-7xl: 4.5rem;     /* 63px */
+  --text-8xl: 6rem;       /* 84px */
+  --text-9xl: 8rem;       /* 112px */
+
+  /* Typography System Guide - Custom Micro Sizes */
+  --text-6px: 6px;
+  --text-7px: 7px;
+  --text-8px: 8px;
+  --text-10px: 10px;
+  --text-11px: 11px;
+  --text-15px: 15px;
+  --text-22px: 22px;
+
+  /* Typography System Guide - Font Weights */
+  --font-thin: 100;
+  --font-extralight: 200;
+  --font-light: 300;
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+  --font-extrabold: 800;
+  --font-black: 900;
+
+  /* Weight aliases for backwards compatibility */
   --weight-light: 300;
   --weight-regular: 400;
   --weight-medium: 500;
@@ -50,18 +90,27 @@
   --weight-bold: 700;
   --weight-extrabold: 800;
   --weight-black: 900;
-  --tracking-tighter: -0.035em;
+
+  /* Typography System Guide - Letter Spacing (Tracking) */
+  --tracking-tighter: -0.05em;
   --tracking-tight: -0.025em;
   --tracking-snug: -0.015em;
-  --tracking-normal: -0.011em;
-  --tracking-wide: 0.015em;
+  --tracking-normal: 0em;
+  --tracking-wide: 0.025em;
   --tracking-wider: 0.05em;
+  --tracking-widest: 0.1em;
   --tracking-label: 0.08em;
+  --tracking-200: 0.2em;
+  --tracking-250: 0.25em;
+
+  /* Typography System Guide - Line Height (Leading) */
   --leading-none: 1;
   --leading-tight: 1.25;
   --leading-snug: 1.375;
   --leading-normal: 1.5;
   --leading-relaxed: 1.625;
+  --leading-loose: 2;
+
   --header-h: 72px;
   --bottom-nav-h: 3.65rem;
   --max: 1280px;
@@ -75,7 +124,9 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Base Configuration */
 html {
+  font-size: 14px; /* 125% of default 16px to mimic OS display scaling */
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
   text-rendering: optimizeLegibility;
@@ -84,9 +135,9 @@ html {
 
 body {
   margin: 0;
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-regular);
+  font-family: var(--font-geist-sans);
+  font-size: var(--text-base);
+  font-weight: var(--font-normal);
   line-height: var(--leading-normal);
   letter-spacing: var(--tracking-normal);
   color: var(--color-ink);
@@ -95,6 +146,12 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Dashboard UI font stack when dashboard-ui class is present */
+body.dashboard-ui,
+.dashboard-ui {
+  font-family: var(--font-system-ui);
 }
 
 a {
@@ -115,14 +172,15 @@ textarea {
   letter-spacing: inherit;
 }
 
+/* Headings Default */
 h1,
 h2,
 h3,
 h4,
 h5,
 h6 {
-  font-family: var(--font-sans);
-  font-weight: var(--weight-semibold);
+  font-family: var(--font-geist-sans);
+  font-weight: var(--font-semibold);
   line-height: var(--leading-tight);
   letter-spacing: var(--tracking-tight);
   color: var(--color-ink);
@@ -131,27 +189,27 @@ h6 {
 
 h1 {
   font-size: var(--text-2xl);
-  font-weight: var(--weight-bold);
-  letter-spacing: var(--tracking-tighter);
+  font-weight: var(--font-bold);
+  letter-spacing: var(--tracking-tight);
 }
 
 h2 {
   font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--font-semibold);
   letter-spacing: var(--tracking-tight);
 }
 
 h3 {
-  font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
   letter-spacing: var(--tracking-snug);
 }
 
 h4,
 h5,
 h6 {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
   letter-spacing: var(--tracking-snug);
 }
 
@@ -163,20 +221,17 @@ h6 {
 
 p {
   line-height: var(--leading-relaxed);
+  margin: 0 0 1rem;
 }
 
 strong,
 b {
-  font-weight: var(--weight-semibold);
+  font-weight: var(--font-semibold);
 }
 
 small {
   font-size: var(--text-xs);
   color: var(--color-ink-muted);
-}
-
-p {
-  margin: 0 0 1rem;
 }
 
 .container {
@@ -194,3 +249,124 @@ p {
   clip: rect(0, 0, 0, 0);
   border: 0;
 }
+
+/* ==========================================================================
+   Typography Utility Classes (Typography System Guide)
+   ========================================================================== */
+
+/* Font Families */
+.font-sans {
+  font-family: var(--font-geist-sans) !important;
+}
+
+.font-mono {
+  font-family: var(--font-geist-mono) !important;
+}
+
+.font-serif {
+  font-family: var(--font-serif) !important;
+}
+
+.font-outfit {
+  font-family: var(--font-outfit) !important;
+}
+
+/* Font Sizes */
+.text-xs { font-size: var(--text-xs) !important; }
+.text-sm { font-size: var(--text-sm) !important; }
+.text-base { font-size: var(--text-base) !important; }
+.text-lg { font-size: var(--text-lg) !important; }
+.text-xl { font-size: var(--text-xl) !important; }
+.text-2xl { font-size: var(--text-2xl) !important; }
+.text-3xl { font-size: var(--text-3xl) !important; }
+.text-4xl { font-size: var(--text-4xl) !important; }
+.text-5xl { font-size: var(--text-5xl) !important; }
+.text-6xl { font-size: var(--text-6xl) !important; }
+.text-7xl { font-size: var(--text-7xl) !important; }
+.text-8xl { font-size: var(--text-8xl) !important; }
+.text-9xl { font-size: var(--text-9xl) !important; }
+
+/* Custom Micro Sizes */
+.text-\[6px\] { font-size: 6px !important; }
+.text-\[7px\] { font-size: 7px !important; }
+.text-\[8px\] { font-size: 8px !important; }
+.text-\[10px\] { font-size: 10px !important; }
+.text-\[11px\] { font-size: 11px !important; }
+.text-\[15px\] { font-size: 15px !important; }
+.text-\[22px\] { font-size: 22px !important; }
+
+/* Font Weights */
+.font-thin { font-weight: 100 !important; }
+.font-extralight { font-weight: 200 !important; }
+.font-light { font-weight: 300 !important; }
+.font-normal { font-weight: 400 !important; }
+.font-medium { font-weight: 500 !important; }
+.font-semibold { font-weight: 600 !important; }
+.font-bold { font-weight: 700 !important; }
+.font-extrabold { font-weight: 800 !important; }
+.font-black { font-weight: 900 !important; }
+
+/* Letter Spacing (Tracking) */
+.tracking-tighter { letter-spacing: -0.05em !important; }
+.tracking-tight { letter-spacing: -0.025em !important; }
+.tracking-normal { letter-spacing: 0em !important; }
+.tracking-wide { letter-spacing: 0.025em !important; }
+.tracking-wider { letter-spacing: 0.05em !important; }
+.tracking-widest { letter-spacing: 0.1em !important; }
+.tracking-\[0\.2em\] { letter-spacing: 0.2em !important; }
+.tracking-\[0\.25em\] { letter-spacing: 0.25em !important; }
+
+/* Line Height (Leading) */
+.leading-none { line-height: 1 !important; }
+.leading-tight { line-height: 1.25 !important; }
+.leading-snug { line-height: 1.375 !important; }
+.leading-normal { line-height: 1.5 !important; }
+.leading-relaxed { line-height: 1.625 !important; }
+.leading-loose { line-height: 2 !important; }
+
+/* Text Colors */
+.text-foreground { color: var(--color-ink) !important; }
+.text-muted-foreground { color: var(--color-ink-muted) !important; }
+.text-slate-900 { color: #0f172a !important; }
+.text-slate-600 { color: #475569 !important; }
+.text-slate-500 { color: #64748b !important; }
+.text-slate-400 { color: #94a3b8 !important; }
+.text-white { color: #ffffff !important; }
+.text-\[\#668c65\] { color: #668c65 !important; }
+.text-\[\#6b8f6b\] { color: #6b8f6b !important; }
+.text-\[\#0d182a\] { color: #0d182a !important; }
+
+/* Special Text Helpers */
+.truncate {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.line-clamp-1 {
+  overflow: hidden !important;
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 1 !important;
+}
+
+.line-clamp-2 {
+  overflow: hidden !important;
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+}
+
+.line-clamp-3 {
+  overflow: hidden !important;
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 3 !important;
+}
+
+.uppercase { text-transform: uppercase !important; }
+.capitalize { text-transform: capitalize !important; }
+.italic { font-style: italic !important; }
+.text-left { text-align: left !important; }
+.text-center { text-align: center !important; }
+.text-right { text-align: right !important; }

@@ -788,24 +788,81 @@ export function useRequestPayout() {
   });
 }
 
+export type SellerOrderItem = {
+  id: string;
+  variantId: string;
+  productName: string;
+  variantName?: string | null;
+  sku: string;
+  quantity: number;
+  unitPrice: string;
+  lineTotal: string;
+};
+
+export type SellerOrderCustomer = {
+  id: string;
+  fullName: string;
+  email?: string | null;
+  phone?: string | null;
+  avatarUrl?: string | null;
+};
+
+export type SellerOrderAddress = {
+  id: string;
+  fullName: string;
+  phone: string;
+  province: string;
+  district: string;
+  sector?: string | null;
+  cell?: string | null;
+  village?: string | null;
+  street?: string | null;
+  landmark?: string | null;
+  kgAddress?: string | null;
+  building?: string | null;
+  apartment?: string | null;
+  instructions?: string | null;
+  googleMapsUrl?: string | null;
+};
+
+export type SellerOrder = {
+  id: string;
+  sellerOrderNumber: string;
+  status: string;
+  subtotal: string;
+  deliveryFee: string;
+  commissionTotal?: string;
+  sellerEarnings?: string;
+  createdAt: string;
+  updatedAt?: string;
+  parentOrderNumber: string;
+  notes?: string | null;
+  items: SellerOrderItem[];
+  address?: SellerOrderAddress | null;
+  customer?: SellerOrderCustomer | null;
+};
+
 export function useSellerOrders(status?: string) {
   return useQuery({
     queryKey: ['seller', 'orders', status],
     queryFn: async () => {
-      const { data } = await api.get<
-        ApiSuccess<{
-          items: Array<{
-            id: string;
-            sellerOrderNumber: string;
-            status: string;
-            subtotal: string;
-            parentOrderNumber: string;
-            items: Array<{ productName: string; quantity: number; lineTotal: string }>;
-          }>;
-        }>
-      >('/sellers/me/orders', { params: { status } });
+      const { data } = await api.get<ApiSuccess<{ items: SellerOrder[] }>>('/sellers/me/orders', {
+        params: { status },
+      });
       return data.data;
     },
+  });
+}
+
+export function useSellerOrder(id?: string) {
+  return useQuery({
+    queryKey: ['seller', 'order', id],
+    queryFn: async () => {
+      if (!id) return null;
+      const { data } = await api.get<ApiSuccess<SellerOrder>>(`/sellers/me/orders/${id}`);
+      return data.data;
+    },
+    enabled: Boolean(id),
   });
 }
 
@@ -1087,6 +1144,8 @@ export function useAdminUsers(q?: string) {
             phone: string | null;
             fullName: string;
             status: string;
+            failedLoginCount?: number;
+            lockedUntil?: string | null;
             roles: string[];
           }>;
         }>
@@ -1103,7 +1162,24 @@ export function useUpdateUserStatus() {
       const { data } = await api.patch(`/admin/users/${body.id}/status`, { status: body.status });
       return data.data;
     },
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['admin', 'users'] }),
+    onSuccess: (_, variables) => {
+      void qc.invalidateQueries({ queryKey: ['admin', 'users'] });
+      void qc.invalidateQueries({ queryKey: ['admin', 'user', variables.id] });
+    },
+  });
+}
+
+export function useUnlockUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.post(`/admin/users/${id}/unlock`);
+      return data.data;
+    },
+    onSuccess: (_, id) => {
+      void qc.invalidateQueries({ queryKey: ['admin', 'users'] });
+      void qc.invalidateQueries({ queryKey: ['admin', 'user', id] });
+    },
   });
 }
 
@@ -1185,6 +1261,8 @@ export type AdminUserDetail = {
   phone: string | null;
   fullName: string;
   status: string;
+  failedLoginCount?: number;
+  lockedUntil?: string | null;
   avatarUrl: string | null;
   emailVerifiedAt: string | null;
   phoneVerifiedAt: string | null;

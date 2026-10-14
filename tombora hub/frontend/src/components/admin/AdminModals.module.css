@@ -28,9 +28,7 @@
   background: #ffffff;
   border-radius: 20px;
   border: 1px solid rgba(226, 232, 240, 0.9);
-  box-shadow:
-    0 24px 54px -12px rgba(15, 23, 42, 0.22),
-    0 8px 18px -4px rgba(15, 23, 42, 0.08);
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -232,7 +230,8 @@
 
 .galleryThumbPrimary {
   border-color: #6b8f6b;
-  box-shadow: 0 0 0 2px rgba(107, 143, 107, 0.3);
+  border-width: 2px;
+  box-shadow: none;
 }
 
 .variantsTable {
@@ -246,13 +245,14 @@
 }
 
 .variantsTable th {
-  background: #f1f5f9;
+  background: #ffffff;
   text-align: left;
   padding: 0.5rem 0.75rem;
   font-size: 0.6875rem;
   text-transform: uppercase;
   color: #475569;
   font-weight: 600;
+  border-bottom: 1px solid #edf2f7;
 }
 
 .variantsTable td {

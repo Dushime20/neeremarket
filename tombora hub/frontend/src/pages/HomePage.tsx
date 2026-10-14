@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useCategories, useProducts, useStores, type ProductListItem } from '@/api/hooks';
-import { Alert, Button, EmptyState, ProductGridSkeleton } from '@/components/ui';
-import { PriceDisplay, ProductGrid } from '@/components/product';
-import { getErrorMessage } from '@/api/client';
-import { discountPercent } from '@/utils/money';
-import { categoryImage, FALLBACK_CATEGORY_VISUAL } from '@/utils/categoryVisuals';
+import { Button } from '@/components/ui';
+import { PriceDisplay } from '@/components/product';
+import {
+  categoryImage,
+  FALLBACK_CATEGORY_VISUAL,
+  getCategoryQuadTiles,
+} from '@/utils/categoryVisuals';
 import { HomeQuickActions } from '@/components/navigation/HomeQuickActions';
 import styles from './HomePage.module.css';
 
@@ -29,7 +31,7 @@ function chunkItems<T>(items: T[], size: number) {
 }
 
 export function HomePage() {
-  const { data: products, isLoading, isError, error } = useProducts({ page: 1, limit: 16 });
+  const { data: products, isLoading } = useProducts({ page: 1, limit: 16 });
   const { data: newArrivalsData, isLoading: newArrivalsLoading } = useProducts({
     page: 1,
     limit: 4,
@@ -56,7 +58,71 @@ export function HomePage() {
     [verifiedStores, storesPerPage],
   );
   const storePageCount = storePages.length;
+
+  const [showcaseStoreIdx, setShowcaseStoreIdx] = useState(0);
+  const [showcasePaused, setShowcasePaused] = useState(false);
+  const showcaseStores = useMemo(() => {
+    return verifiedStores.length ? verifiedStores : (stores?.items ?? []);
+  }, [verifiedStores, stores]);
+
+  const currentStore = showcaseStores[showcaseStoreIdx] || showcaseStores[0];
+
+  const showcaseProducts = useMemo(() => {
+    if (!currentStore) return [];
+    const list = [...(currentStore.products || [])];
+    if (list.length < 8 && items.length) {
+      const existingIds = new Set(list.map((p) => p.id));
+      for (const p of items) {
+        if (!existingIds.has(p.id)) {
+          list.push({
+            id: p.id,
+            name: p.name,
+            slug: p.slug,
+            imageUrl: p.images[0]?.url || null,
+          });
+          existingIds.add(p.id);
+          if (list.length >= 8) break;
+        }
+      }
+    }
+    return list.slice(0, 8);
+  }, [currentStore, items]);
+
+  const showcaseBannerImg =
+    currentStore?.seller.coverUrl ||
+    showcaseProducts[0]?.imageUrl ||
+    currentStore?.seller.logoUrl ||
+    FALLBACK_CATEGORY_VISUAL.image;
+
   const categoryList = categories || [];
+
+  const quadCategoryCards = useMemo(() => {
+    if (!categoryList.length) return [];
+
+    return categoryList.map((cat) => {
+      const catProds = items
+        .filter((p) => {
+          const s = p.category?.slug?.toLowerCase() || '';
+          const ps = p.category?.parent?.slug?.toLowerCase() || '';
+          const target = cat.slug.toLowerCase();
+          return s === target || ps === target || s.includes(target);
+        })
+        .map((p) => ({
+          name: p.name,
+          slug: p.slug,
+          imageUrl: p.images[0]?.url || null,
+        }));
+
+      const tiles = getCategoryQuadTiles(cat.slug, catProds);
+
+      return {
+        id: cat.id,
+        name: cat.name,
+        slug: cat.slug,
+        tiles,
+      };
+    });
+  }, [categoryList, items]);
   const catPages = useMemo(
     () => chunkItems(categoryList, catsPerPage),
     [categoryList, catsPerPage],
@@ -109,6 +175,14 @@ export function HomePage() {
     return () => window.clearInterval(id);
   }, [catsPaused, catPageCount]);
 
+  useEffect(() => {
+    if (showcasePaused || showcaseStores.length <= 1) return;
+    const id = window.setInterval(() => {
+      setShowcaseStoreIdx((current) => (current + 1) % showcaseStores.length);
+    }, 6000);
+    return () => window.clearInterval(id);
+  }, [showcasePaused, showcaseStores.length]);
+
   function goTo(index: number) {
     setSlide((index + slidesCount) % slidesCount);
   }
@@ -127,9 +201,12 @@ export function HomePage() {
 
       <section className={`container ${styles.market}`} aria-label="Marketplace hero">
         <aside className={styles.arrivalsPanel} aria-labelledby="hero-arrivals">
-          <h2 id="hero-arrivals" className={styles.arrivalsTitle}>
-            New arrivals in Rwanda
-          </h2>
+          <div className={styles.panelTitleRow}>
+            <h2 id="hero-arrivals" className={styles.arrivalsTitle}>
+              New arrivals
+            </h2>
+            <span className={styles.liveBadge}>Rwanda</span>
+          </div>
           {newArrivals.length ? (
             <div className={styles.arrivalsGrid}>
               {newArrivals.slice(0, 4).map((product) => (
@@ -252,7 +329,13 @@ export function HomePage() {
 
           <div className={styles.storeCarousel} aria-label="Verified stores">
             <div className={styles.storeHead}>
-              <h2>Verified stores</h2>
+              <div className={styles.storeHeadTitle}>
+                <svg className={styles.verifiedIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  <path d="m9 12 2 2 4-4" />
+                </svg>
+                <h2>Verified stores</h2>
+              </div>
               <Link to="/stores">View all</Link>
             </div>
             <div className={styles.storeStage}>
@@ -268,11 +351,13 @@ export function HomePage() {
                         return (
                           <article key={store.id} className={styles.storeCard}>
                             <Link to={`/stores/${store.slug}`} className={styles.storeCardHead}>
-                              <strong>{store.name}</strong>
-                              <span>
+                              <div className={styles.storeNameRow}>
+                                <strong>{store.name}</strong>
+                              </div>
+                              <span className={styles.storeLocation}>
                                 {[store.seller.marketLocation, store.seller.district]
                                   .filter(Boolean)
-                                  .join(' · ') || 'Verified store'}
+                                  .join(' · ') || 'Kigali, Rwanda'}
                               </span>
                             </Link>
                             <div className={styles.storeProducts}>
@@ -360,26 +445,24 @@ export function HomePage() {
 
         <aside className={styles.trendPanel} aria-labelledby="trending-heading">
           <div className={styles.panelHead}>
-            <h2 id="trending-heading">Trending</h2>
+            <div className={styles.panelTitleRow}>
+              <h2 id="trending-heading">Trending</h2>
+              <span className={styles.liveBadge}>Live</span>
+            </div>
             <Link to="/products">See all</Link>
           </div>
           <ul className={styles.trendList}>
-            {trending.map((product, index) => {
-              const pct = discountPercent(product.price, product.discountPrice);
-              return (
-                <li key={product.id}>
-                  <Link to={`/products/${product.slug}`} className={styles.trendItem}>
-                    <span className={styles.rank}>{index + 1}</span>
-                    <img src={productImage(product)} alt="" />
-                    <div>
-                      <p>{product.name}</p>
-                      <PriceDisplay price={product.price} discountPrice={product.discountPrice} />
-                      {pct ? <em>{pct}% off</em> : null}
-                    </div>
-                  </Link>
-                </li>
-              );
-            })}
+            {trending.map((product) => (
+              <li key={product.id}>
+                <Link to={`/products/${product.slug}`} className={styles.trendItem}>
+                  <img src={productImage(product)} alt="" />
+                  <div>
+                    <p>{product.name}</p>
+                    <PriceDisplay price={product.price} discountPrice={product.discountPrice} />
+                  </div>
+                </Link>
+              </li>
+            ))}
           </ul>
           {!trending.length && isLoading ? <p className={styles.panelHint}>Loading trending items…</p> : null}
           {!trending.length && !isLoading ? (
@@ -387,6 +470,8 @@ export function HomePage() {
           ) : null}
         </aside>
       </section>
+
+
 
       <section className={`container ${styles.section}`} aria-labelledby="cats-heading">
         <div
@@ -461,28 +546,149 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className={`container ${styles.section} ${styles.homeProducts}`} aria-labelledby="popular-heading">
-        <div className={styles.sectionHead}>
-          <div>
-            <p className={styles.kicker}>Recommended</p>
-            <h2 id="popular-heading">Popular this week</h2>
-            <p>Live catalog from boutiques, stalls, and verified sellers across Rwanda.</p>
+      {currentStore ? (
+        <section
+          className={`container ${styles.section} ${styles.storeShowcaseSection}`}
+          aria-label="Store showcase"
+          onMouseEnter={() => setShowcasePaused(true)}
+          onMouseLeave={() => setShowcasePaused(false)}
+        >
+          <div className={styles.sectionHead}>
+            <div className={styles.showcaseNavGroup}>
+              <Link to="/stores" className={styles.sectionLink}>
+                All stores
+              </Link>
+              {showcaseStores.length > 1 ? (
+                <div className={styles.showcaseArrows} aria-label="Browse stores">
+                  <button
+                    type="button"
+                    className={styles.showcaseArrowBtn}
+                    aria-label="Previous store"
+                    onClick={() =>
+                      setShowcaseStoreIdx(
+                        (current) => (current - 1 + showcaseStores.length) % showcaseStores.length,
+                      )
+                    }
+                  >
+                    ‹
+                  </button>
+                  <span className={styles.showcaseCounter}>
+                    {showcaseStoreIdx + 1} / {showcaseStores.length}
+                  </span>
+                  <button
+                    type="button"
+                    className={styles.showcaseArrowBtn}
+                    aria-label="Next store"
+                    onClick={() =>
+                      setShowcaseStoreIdx((current) => (current + 1) % showcaseStores.length)
+                    }
+                  >
+                    ›
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
-          <Link to="/products" className={styles.sectionLink}>
-            Shop all
-          </Link>
-        </div>
 
-        {isLoading ? <ProductGridSkeleton /> : null}
-        {isError ? <Alert tone="error">{getErrorMessage(error)}</Alert> : null}
-        {!isLoading && !isError && products?.items.length === 0 ? (
-          <EmptyState
-            title="No products yet"
-            description="Sellers can list items from the seller portal."
-          />
-        ) : null}
-        {products?.items.length ? <ProductGrid products={products.items} /> : null}
-      </section>
+          <div className={styles.storeShowcaseCard}>
+            {/* Left Column: Featured Banner matching the design */}
+            <div className={styles.showcaseBanner}>
+              <div className={styles.showcaseBannerTop}>
+                <h3 className={styles.showcaseTitle}>{currentStore.name}</h3>
+                <p className={styles.showcaseLocation}>
+                  {[currentStore.seller.marketLocation, currentStore.seller.district]
+                    .filter(Boolean)
+                    .join(' · ') || 'Kigali, Rwanda'}
+                </p>
+                <Link
+                  to={`/stores/${currentStore.slug}`}
+                  className={styles.showcasePillBtn}
+                >
+                  Source Now
+                </Link>
+              </div>
+              <div className={styles.showcaseBannerImage}>
+                <img src={showcaseBannerImg} alt={currentStore.name} />
+              </div>
+            </div>
+
+            {/* Right Column: 4x2 Grid of 8 items */}
+            <div className={styles.showcaseGrid}>
+              {showcaseProducts.map((p) => (
+                <Link
+                  key={p.id}
+                  to={`/products/${p.slug}`}
+                  className={styles.showcaseItem}
+                  title={p.name}
+                >
+                  <span className={styles.showcaseItemTitle}>{p.name}</span>
+                  <div className={styles.showcaseItemImgWrap}>
+                    <img
+                      src={p.imageUrl || FALLBACK_CATEGORY_VISUAL.image}
+                      alt={p.name}
+                      loading="lazy"
+                    />
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {showcaseStores.length > 1 ? (
+            <div className={styles.showcaseDots} role="tablist" aria-label="Featured store pages">
+              {showcaseStores.map((st, index) => (
+                <button
+                  key={st.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={index === showcaseStoreIdx}
+                  aria-label={`Store ${index + 1}: ${st.name}`}
+                  className={index === showcaseStoreIdx ? styles.showcaseDotActive : styles.showcaseDot}
+                  onClick={() => setShowcaseStoreIdx(index)}
+                />
+              ))}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {/* Category Quad Cards Section */}
+      {quadCategoryCards.length ? (
+        <section
+          className={`container ${styles.quadSection}`}
+          aria-label="Shop products by category"
+        >
+          {quadCategoryCards.map((group) => (
+            <article key={group.slug} className={styles.quadCard}>
+              <Link to={`/categories/${group.slug}`} className={styles.quadHead}>
+                <h3 className={styles.quadTitle}>{group.name}</h3>
+                <span className={styles.quadChevron} aria-hidden="true">
+                  ›
+                </span>
+              </Link>
+              <div className={styles.quadGrid}>
+                {group.tiles.map((tile, idx) => (
+                  <Link
+                    key={`${group.slug}-tile-${idx}`}
+                    to={tile.href}
+                    className={styles.quadTile}
+                    title={tile.name}
+                  >
+                    <div className={styles.quadImgWrap}>
+                      <img
+                        src={tile.image}
+                        alt={tile.name}
+                        loading="lazy"
+                      />
+                    </div>
+                    <span className={styles.quadLabel}>{tile.name}</span>
+                  </Link>
+                ))}
+              </div>
+            </article>
+          ))}
+        </section>
+      ) : null}
     </div>
   );
 }

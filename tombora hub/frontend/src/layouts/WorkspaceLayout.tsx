@@ -132,6 +132,7 @@ export function WorkspaceLayout({ variant }: { variant: Variant }) {
 
   useEffect(() => {
     setMenuOpen(false);
+    setOpen(false);
   }, [pathname]);
 
   useEffect(() => {
@@ -162,7 +163,7 @@ export function WorkspaceLayout({ variant }: { variant: Variant }) {
       if (pathname.startsWith('/seller/products/') && pathname !== '/seller/products') return 'Listing details';
       if (pathname.startsWith('/seller/products')) return 'Catalog';
       if (pathname.startsWith('/seller/inventory')) return 'Inventory';
-      if (pathname.startsWith('/seller/reviews')) return 'Reviews';
+      if (pathname.startsWith('/seller/orders/') && pathname !== '/seller/orders') return 'Order details';
       if (pathname.startsWith('/seller/orders')) return 'Orders';
       if (pathname.startsWith('/seller/finance')) return 'Finance';
       if (pathname.startsWith('/seller/messages')) return 'Messages';
@@ -197,7 +198,7 @@ export function WorkspaceLayout({ variant }: { variant: Variant }) {
     <div
       className={`${styles.shell} ${open ? styles.navOpen : ''} ${collapsed ? styles.shellCollapsed : ''}`}
     >
-      <aside className={styles.sidebar} aria-label={collapsed ? 'Collapsed navigation' : 'Navigation'}>
+      <aside className={`${styles.sidebar} font-sans`} aria-label={collapsed ? 'Collapsed navigation' : 'Navigation'}>
         <div className={styles.sidebarHead}>
           <div className={styles.brandRow}>
             <Link to="/" className={styles.brand} onClick={() => setOpen(false)} title={APP_NAME}>
@@ -430,6 +431,81 @@ export function WorkspaceLayout({ variant }: { variant: Variant }) {
         <div className={styles.content}>
           <Outlet />
         </div>
+
+        {variant === 'seller' ? (
+          <nav className={styles.mobileNav} aria-label="Seller quick navigation">
+            <NavLink
+              to="/seller"
+              end
+              className={({ isActive }) =>
+                `${styles.mobileNavItem} ${isActive ? styles.mobileNavActive : ''}`
+              }
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                <polyline points="9 22 9 12 15 12 15 22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span>Home</span>
+            </NavLink>
+
+            <NavLink
+              to="/seller/orders"
+              className={({ isActive }) =>
+                `${styles.mobileNavItem} ${isActive ? styles.mobileNavActive : ''}`
+              }
+            >
+              <div className={styles.mobileNavIconWrap}>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  <line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  <path d="M16 10a4 4 0 0 1-8 0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <span>Orders</span>
+            </NavLink>
+
+            <NavLink
+              to="/seller/products"
+              className={({ isActive }) =>
+                `${styles.mobileNavItem} ${isActive ? styles.mobileNavActive : ''}`
+              }
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96" fill="none" stroke="currentColor" strokeWidth="1.8" />
+                <line x1="12" y1="22.08" x2="12" y2="12" stroke="currentColor" strokeWidth="1.8" />
+              </svg>
+              <span>Catalog</span>
+            </NavLink>
+
+            <NavLink
+              to="/seller/finance"
+              className={({ isActive }) =>
+                `${styles.mobileNavItem} ${isActive ? styles.mobileNavActive : ''}`
+              }
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="2" y="5" width="20" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+                <line x1="2" y1="10" x2="22" y2="10" stroke="currentColor" strokeWidth="1.8" />
+              </svg>
+              <span>Wallet</span>
+            </NavLink>
+
+            <button
+              type="button"
+              className={`${styles.mobileNavItem} ${open ? styles.mobileNavActive : ''}`}
+              onClick={() => setOpen(true)}
+              aria-label="Open full seller menu"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+                <circle cx="19" cy="12" r="1.5" fill="currentColor" />
+                <circle cx="5" cy="12" r="1.5" fill="currentColor" />
+              </svg>
+              <span>More</span>
+            </button>
+          </nav>
+        ) : null}
       </div>
     </div>
   );

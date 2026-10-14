@@ -39,14 +39,6 @@ export function SellerReviewsPage() {
         <title>Reviews | NeereMarket</title>
       </Helmet>
 
-      <header className={styles.pageHead}>
-        <div>
-          <p className={styles.kicker}>Reputation</p>
-          <h1>Reviews & comments</h1>
-          <p>See what buyers write about your products and your store.</p>
-        </div>
-      </header>
-
       <div className={styles.kpis}>
         <article className={styles.kpi}>
           <strong>{summary?.total ?? 0}</strong>

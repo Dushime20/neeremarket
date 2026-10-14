@@ -3,7 +3,7 @@ import styles from './Badge.module.css';
 
 type Props = {
   children: ReactNode;
-  tone?: 'brand' | 'accent' | 'muted' | 'success' | 'warning' | 'danger';
+  tone?: 'brand' | 'accent' | 'muted' | 'success' | 'warning' | 'danger' | 'system' | 'sage';
 };
 
 export function Badge({ children, tone = 'brand' }: Props) {

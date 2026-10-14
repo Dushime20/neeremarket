@@ -737,7 +737,17 @@ export async function listSellerOrders(userId: string, status?: string) {
           orderNumber: true,
           createdAt: true,
           customerId: true,
+          notes: true,
           address: true,
+          customer: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              phone: true,
+              avatarUrl: true,
+            },
+          },
         },
       },
     },
@@ -750,14 +760,74 @@ export async function listSellerOrders(userId: string, status?: string) {
       status: o.status,
       subtotal: String(o.subtotal),
       deliveryFee: String(o.deliveryFee),
+      commissionTotal: String(o.commissionTotal),
+      sellerEarnings: String(o.sellerEarnings),
       createdAt: o.createdAt,
+      updatedAt: o.updatedAt,
       parentOrderNumber: o.order.orderNumber,
+      notes: o.order.notes,
       items: o.items.map((i) => ({
         ...i,
         unitPrice: String(i.unitPrice),
         lineTotal: String(i.lineTotal),
       })),
       address: o.order.address,
+      customer: o.order.customer,
     })),
+  };
+}
+
+export async function getSellerOrder(userId: string, id: string) {
+  const seller = await prisma.sellerProfile.findUnique({ where: { userId } });
+  if (!seller) throw Errors.notFound('Seller profile');
+
+  const o = await prisma.sellerOrder.findFirst({
+    where: {
+      id,
+      sellerId: seller.id,
+    },
+    include: {
+      items: true,
+      order: {
+        select: {
+          orderNumber: true,
+          createdAt: true,
+          customerId: true,
+          notes: true,
+          address: true,
+          customer: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              phone: true,
+              avatarUrl: true,
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!o) throw Errors.notFound('Seller order');
+
+  return {
+    id: o.id,
+    sellerOrderNumber: o.sellerOrderNumber,
+    status: o.status,
+    subtotal: String(o.subtotal),
+    deliveryFee: String(o.deliveryFee),
+    commissionTotal: String(o.commissionTotal),
+    sellerEarnings: String(o.sellerEarnings),
+    createdAt: o.createdAt,
+    updatedAt: o.updatedAt,
+    parentOrderNumber: o.order.orderNumber,
+    notes: o.order.notes,
+    items: o.items.map((i) => ({
+      ...i,
+      unitPrice: String(i.unitPrice),
+      lineTotal: String(i.lineTotal),
+    })),
+    address: o.order.address,
+    customer: o.order.customer,
   };
 }

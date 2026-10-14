@@ -38,3 +38,10 @@
   background: #fef3f2;
   color: var(--color-danger);
 }
+
+.system,
+.sage {
+  background: #edf4ed;
+  color: #547354;
+  border: 1px solid rgba(107, 143, 107, 0.28);
+}

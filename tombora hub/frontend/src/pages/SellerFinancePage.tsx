@@ -38,14 +38,6 @@ export function SellerFinancePage() {
         <title>Seller finance | NeereMarket</title>
       </Helmet>
 
-      <header className={styles.pageHead}>
-        <div>
-          <p className={styles.kicker}>Wallet</p>
-          <h1>Finance</h1>
-          <p>Earnings, commission, and MoMo payouts in RWF.</p>
-        </div>
-      </header>
-
       {isLoading ? <TableSkeleton rows={4} /> : null}
       {isError ? <Alert tone="error">{getErrorMessage(error)}</Alert> : null}
       {msg ? <Alert tone="success">{msg}</Alert> : null}
@@ -136,7 +128,8 @@ export function SellerFinancePage() {
                 </div>
               ) : (
                 <>
-                  <div className={styles.tableWrap}>
+                  {/* Desktop Table */}
+                  <div className={`${styles.tableWrap} ${styles.desktopOnlyTable}`}>
                     <table className={styles.table}>
                       <thead>
                         <tr>
@@ -160,6 +153,26 @@ export function SellerFinancePage() {
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Mobile-First Payout Cards */}
+                  <div className={styles.mobileOnlyCards}>
+                    {(finance.payouts || [])
+                      .slice((payoutPage - 1) * pageSize, payoutPage * pageSize)
+                      .map((p) => (
+                        <article key={p.id} className={styles.mobileCard}>
+                          <div className={styles.mobileCardHead}>
+                            <div>
+                              <span className={styles.mobileCardPrice}>{formatRwf(p.amount)}</span>
+                              <span className={styles.mobileCardSubtitle} style={{ marginTop: '0.2rem' }}>
+                                {p.method.replace(/_/g, ' ')}
+                              </span>
+                            </div>
+                            <Badge tone={statusTone(p.status)}>{prettyStatus(p.status)}</Badge>
+                          </div>
+                        </article>
+                      ))}
+                  </div>
+
                   <TablePagination
                     page={payoutPage}
                     totalPages={Math.ceil((finance.payouts || []).length / pageSize)}
@@ -185,7 +198,8 @@ export function SellerFinancePage() {
               </div>
             ) : (
               <>
-                <div className={styles.tableWrap}>
+                {/* Desktop Table */}
+                <div className={`${styles.tableWrap} ${styles.desktopOnlyTable}`}>
                   <table className={styles.table}>
                     <thead>
                       <tr>
@@ -212,6 +226,37 @@ export function SellerFinancePage() {
                     </tbody>
                   </table>
                 </div>
+
+                {/* Mobile-First Ledger Cards */}
+                <div className={styles.mobileOnlyCards}>
+                  {(finance.ledger || [])
+                    .slice((ledgerPage - 1) * pageSize, ledgerPage * pageSize)
+                    .map((e) => (
+                      <article key={e.id} className={styles.mobileCard}>
+                        <div className={styles.mobileCardHead}>
+                          <div>
+                            <h3 className={styles.mobileCardTitle}>{prettyStatus(e.entryType)}</h3>
+                            {e.description ? (
+                              <span className={styles.mobileCardSubtitle}>{e.description}</span>
+                            ) : null}
+                          </div>
+                          <span
+                            className={styles.mobileCardPrice}
+                            style={{
+                              color: Number(e.amount) < 0 ? '#b91c1c' : '#15803d',
+                              fontSize: '0.95rem',
+                            }}
+                          >
+                            {Number(e.amount) > 0 ? `+${formatRwf(e.amount)}` : formatRwf(e.amount)}
+                          </span>
+                        </div>
+                        <div className={styles.mobileCardBody} style={{ paddingTop: '0.2rem' }}>
+                          <span className={styles.attrChip}>Bucket: {prettyStatus(e.balanceBucket)}</span>
+                        </div>
+                      </article>
+                    ))}
+                </div>
+
                 <TablePagination
                   page={ledgerPage}
                   totalPages={Math.ceil((finance.ledger || []).length / pageSize)}

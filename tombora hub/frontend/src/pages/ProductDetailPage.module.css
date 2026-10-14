@@ -38,9 +38,10 @@
   border-radius: 999px;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.95);
   color: var(--color-brand);
-  box-shadow: 0 6px 16px rgba(26, 35, 50, 0.18);
+  border: 1px solid var(--color-border);
+  box-shadow: none;
   pointer-events: none;
 }
 
@@ -107,7 +108,8 @@
   object-fit: contain;
   border-radius: 12px;
   background: #fff;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  box-shadow: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .lightboxClose {
@@ -437,6 +439,20 @@
 .actions :global(button:first-child),
 .addToCart {
   flex: 1;
+  background: var(--color-brand);
+  border: 1px solid var(--color-brand);
+  color: #fff;
+  font-weight: var(--weight-semibold);
+  box-shadow: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.actions :global(button:first-child:hover:not(:disabled)),
+.addToCart:hover:not(:disabled) {
+  background: var(--color-brand-deep);
+  border-color: var(--color-brand-deep);
+  box-shadow: none;
+  transform: none;
 }
 
 .wishlistBtn {
@@ -449,6 +465,7 @@
   border-radius: 999px;
   background: #fff;
   color: var(--color-brand);
+  box-shadow: none;
   cursor: pointer;
   transition:
     border-color 0.15s ease,
@@ -464,7 +481,7 @@
 .wishlistBtn:hover {
   border-color: var(--color-brand);
   background: var(--color-brand-soft);
-  color: #b42318;
+  color: var(--color-brand);
 }
 
 .sellerBox {
@@ -527,6 +544,7 @@
 
 .viewMoreReviews:hover {
   text-decoration: underline;
+  color: var(--color-brand-deep);
 }
 
 .reviewsSummary {
@@ -787,7 +805,7 @@
 .composerField textarea:focus {
   outline: none;
   border-color: var(--color-brand);
-  box-shadow: 0 0 0 3px rgba(232, 93, 4, 0.15);
+  box-shadow: none;
   background: #fff;
 }
 
@@ -852,6 +870,7 @@
 
 .alsoViewedLink:hover {
   text-decoration: underline;
+  color: var(--color-brand-deep);
 }
 
 .alsoViewedEmpty {
@@ -1218,7 +1237,7 @@
     padding: 0.55rem 0.75rem;
     background: #fff;
     border-top: 1px solid #e8e8e8;
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+    box-shadow: none;
   }
 
   .mobileChat {
@@ -1244,8 +1263,9 @@
     border-radius: 999px;
     display: grid;
     place-items: center;
-    background: #2f6fed;
-    color: #fff;
+    background: var(--color-brand-soft);
+    color: var(--color-brand);
+    border: 1px solid rgba(232, 93, 4, 0.25);
   }
 
   .mobileChatIcon svg {
@@ -1256,7 +1276,7 @@
   .mobileBuy {
     flex: 1;
     height: 2.65rem;
-    border: 0;
+    border: 1px solid var(--color-brand);
     border-radius: 6px;
     background: var(--color-brand);
     color: #fff;
@@ -1264,6 +1284,14 @@
     font-size: var(--text-md);
     font-weight: var(--weight-semibold);
     cursor: pointer;
+    box-shadow: none;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .mobileBuy:hover:not(:disabled),
+  .mobileBuy:active:not(:disabled) {
+    background: var(--color-brand-deep);
+    border-color: var(--color-brand-deep);
   }
 
   .mobileBuy:disabled {

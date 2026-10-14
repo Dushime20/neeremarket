@@ -15,6 +15,7 @@ export type StoreListItem = {
     ratingAvg: string;
     ratingCount: number;
     logoUrl: string | null;
+    coverUrl?: string | null;
     marketLocation: string | null;
   };
   _count?: { products: number };
@@ -41,7 +42,7 @@ export function SellerCard({ store }: { store: StoreListItem }) {
         <div>
           <h3>{store.name}</h3>
           <div className={styles.meta}>
-            {verified ? <Badge>Verified</Badge> : <Badge tone="muted">Pending</Badge>}
+            {verified ? <Badge tone="system">Verified</Badge> : <Badge tone="muted">Pending</Badge>}
             <Rating value={store.seller.ratingAvg} count={store.seller.ratingCount} />
           </div>
           <p className={styles.loc}>

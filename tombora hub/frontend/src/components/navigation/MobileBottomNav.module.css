@@ -15,7 +15,7 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
     background: #fff;
     border-top: 1px solid var(--color-border);
-    box-shadow: 0 -6px 20px rgba(26, 35, 50, 0.08);
+    box-shadow: none;
   }
 
   .item {

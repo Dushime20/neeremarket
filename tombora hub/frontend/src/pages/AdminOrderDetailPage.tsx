@@ -90,17 +90,11 @@ export function AdminOrderDetailPage() {
         <title>Order {order.orderNumber} | NeereMarket admin</title>
       </Helmet>
 
-      <header className={styles.pageHead}>
-        <div>
-          <p className={styles.kicker}>
-            <Link to="/admin/orders">← All orders</Link>
-          </p>
-          <h1>{order.orderNumber}</h1>
-          <div className={styles.pageMeta}>
-            <Badge tone={statusTone(order.status)}>{prettyStatus(order.status)}</Badge>
-            <span className={styles.muted}>Placed {formatDate(order.createdAt)}</span>
-            {order.paidAt ? <span className={styles.muted}>Paid {formatDate(order.paidAt)}</span> : null}
-          </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', paddingBottom: '0.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <Badge tone={statusTone(order.status)}>{prettyStatus(order.status)}</Badge>
+          <span className={styles.muted} style={{ fontSize: 'var(--text-xs)' }}>Placed {formatDate(order.createdAt)}</span>
+          {order.paidAt ? <span className={styles.muted} style={{ fontSize: 'var(--text-xs)' }}>• Paid {formatDate(order.paidAt)}</span> : null}
         </div>
         <div className={styles.actions}>
           <Link to="/admin/orders">
@@ -109,7 +103,7 @@ export function AdminOrderDetailPage() {
             </Button>
           </Link>
         </div>
-      </header>
+      </div>
 
       <div className={styles.split}>
         <section className={styles.panel}>

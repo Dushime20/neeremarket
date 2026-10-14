@@ -108,28 +108,6 @@ export function SellerProfilePage() {
       <Helmet>
         <title>Store profile | NeereMarket</title>
       </Helmet>
-      <header className={styles.pageHead}>
-        <div>
-          <p className={styles.kicker}>Account</p>
-          <h1>Store profile</h1>
-          <p>
-            {seller?.store?.name || 'Your store'}{' '}
-            {seller ? (
-              <Badge tone={statusTone(seller.verificationStatus)}>
-                {prettyStatus(seller.verificationStatus)}
-              </Badge>
-            ) : null}
-          </p>
-        </div>
-        {seller?.store ? (
-          <Link to={`/stores/${seller.store.slug}`}>
-            <Button type="button" size="sm" variant="secondary">
-              View storefront
-            </Button>
-          </Link>
-        ) : null}
-      </header>
-
       {isLoading ? <p className={styles.muted}>Loading profile…</p> : null}
       {msg ? <Alert tone="success">{msg}</Alert> : null}
       {err ? <Alert tone="error">{err}</Alert> : null}
@@ -138,7 +116,21 @@ export function SellerProfilePage() {
         <div className={styles.twoCol}>
           <section className={styles.panel}>
             <div className={styles.panelHead}>
-              <h2>Business details</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                <h2>Business details</h2>
+                {seller ? (
+                  <Badge tone={statusTone(seller.verificationStatus)}>
+                    {prettyStatus(seller.verificationStatus)}
+                  </Badge>
+                ) : null}
+              </div>
+              {seller?.store ? (
+                <Link to={`/stores/${seller.store.slug}`}>
+                  <Button type="button" size="sm" variant="secondary">
+                    View storefront
+                  </Button>
+                </Link>
+              ) : null}
             </div>
             <div className={styles.panelBody}>
               <form className={`${styles.form} ${styles.formWide}`} onSubmit={onSubmit}>

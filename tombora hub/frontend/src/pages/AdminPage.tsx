@@ -21,6 +21,7 @@ import {
   useUpsertPage,
   useUpsertSetting,
   useUpdateUserStatus,
+  useUnlockUser,
   useAdminPayouts,
   useReviewPayout,
   usePayoutAction,
@@ -47,7 +48,7 @@ import {
   useToast,
 } from '@/components/ui';
 import { UserDetailModal, SellerDetailModal, ProductDetailModal, AuditDetailModal } from '@/components/admin/AdminModals';
-import { ICONS, MetricIcon, greeting, initials, todayLabel } from '@/components/dashboard/metrics';
+import { ICONS, MetricIcon, initials } from '@/components/dashboard/metrics';
 import { getErrorMessage } from '@/api/client';
 import { isAdminRole } from '@/utils/auth';
 import { formatRwf } from '@/utils/money';
@@ -141,13 +142,7 @@ function OverviewTab() {
 
   return (
     <>
-      <header className={styles.pageHead}>
-        <div className={styles.pageHeadCopy}>
-          <p className={styles.kicker}>{todayLabel()}</p>
-          <h1>{greeting()}. Marketplace pulse</h1>
-          <p>Live snapshot of GMV, queues, and catalog health across NeereMarket.</p>
-        </div>
-      </header>
+
 
       {attention > 0 ? (
         <aside className={styles.notice}>
@@ -313,6 +308,7 @@ function UsersTab() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const { data, isLoading, isError, error, refetch } = useAdminUsers(q || undefined);
   const updateStatus = useUpdateUserStatus();
+  const unlockUser = useUnlockUser();
   const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -321,21 +317,23 @@ function UsersTab() {
   }, [urlQ]);
 
   const allUsers = data?.items || [];
+  const isLocked = (u: { lockedUntil?: string | null }) => !!(u.lockedUntil && new Date(u.lockedUntil) > new Date());
   const activeCount = allUsers.filter((u) => u.status === 'ACTIVE').length;
   const suspendedCount = allUsers.filter((u) => u.status === 'SUSPENDED').length;
-  const displayedUsers = statusFilter ? allUsers.filter((u) => u.status === statusFilter) : allUsers;
+  const lockedCount = allUsers.filter(isLocked).length;
+
+  const displayedUsers =
+    statusFilter === 'LOCKED'
+      ? allUsers.filter(isLocked)
+      : statusFilter
+        ? allUsers.filter((u) => u.status === statusFilter)
+        : allUsers;
+
   const totalPages = Math.ceil(displayedUsers.length / pageSize);
   const paginatedUsers = displayedUsers.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <>
-      <header className={styles.pageHead}>
-        <div>
-          <p className={styles.kicker}>Access</p>
-          <h1>Users & Roles</h1>
-          <p>Marketplace accounts, role permissions, and access status.</p>
-        </div>
-      </header>
       {msg ? <Alert tone="success">{msg}</Alert> : null}
       {isLoading ? <TableSkeleton /> : null}
       {isError ? <Alert tone="error">{getErrorMessage(error)}</Alert> : null}
@@ -352,7 +350,13 @@ function UsersTab() {
           title="User Accounts & Roles"
           subtitle={
             <span>
-              <strong>{suspendedCount}</strong> suspended · <strong>{activeCount}</strong> active · <strong>{allUsers.length}</strong> total users
+              <strong>{suspendedCount}</strong> suspended · <strong>{activeCount}</strong> active
+              {lockedCount > 0 ? (
+                <>
+                  {' '}· <strong style={{ color: 'var(--color-danger, #ef4444)' }}>{lockedCount}</strong> locked
+                </>
+              ) : null}{' '}
+              · <strong>{allUsers.length}</strong> total users
             </span>
           }
         />
@@ -367,6 +371,7 @@ function UsersTab() {
             { id: '', label: 'All Users', count: allUsers.length },
             { id: 'ACTIVE', label: 'Active', count: activeCount },
             { id: 'SUSPENDED', label: 'Suspended', count: suspendedCount },
+            ...(lockedCount > 0 ? [{ id: 'LOCKED', label: 'Locked', count: lockedCount }] : []),
           ]}
           activeFilter={statusFilter}
           onFilterChange={(id) => {
@@ -388,43 +393,63 @@ function UsersTab() {
               </tr>
             </thead>
             <tbody>
-              {paginatedUsers.map((u) => (
-                <tr key={u.id}>
-                  <td>
-                    <strong>{u.fullName}</strong>
-                    <small>{u.email || u.phone}</small>
-                  </td>
-                  <td>{u.roles.join(', ')}</td>
-                  <td>
-                    <Badge tone={statusTone(u.status)}>{prettyStatus(u.status)}</Badge>
-                  </td>
-                  <td>
-                    <div className={styles.actions}>
-                      <ActionIconButton
-                        icon="view"
-                        label="View User Details"
-                        onClick={() => setSelectedUserId(u.id)}
-                      />
-                      <ActionIconButton
-                        icon={u.status === 'ACTIVE' ? 'ban' : 'check'}
-                        tone={u.status === 'ACTIVE' ? 'danger' : 'success'}
-                        label={u.status === 'ACTIVE' ? 'Suspend Account' : 'Activate Account'}
-                        disabled={updateStatus.isPending}
-                        onClick={() => {
-                          const next = u.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
-                          updateStatus.mutate(
-                            { id: u.id, status: next },
-                            {
-                              onSuccess: () => setMsg(`Updated ${u.fullName}`),
-                              onError: (err) => setMsg(getErrorMessage(err)),
-                            },
-                          );
-                        }}
-                      />
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {paginatedUsers.map((u) => {
+                const userLocked = isLocked(u);
+                return (
+                  <tr key={u.id}>
+                    <td>
+                      <strong>{u.fullName}</strong>
+                      <small>{u.email || u.phone}</small>
+                    </td>
+                    <td>{u.roles.join(', ')}</td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        <Badge tone={statusTone(u.status)}>{prettyStatus(u.status)}</Badge>
+                        {userLocked ? <Badge tone="danger">Temporarily Locked</Badge> : null}
+                      </div>
+                    </td>
+                    <td>
+                      <div className={styles.actions}>
+                        <ActionIconButton
+                          icon="view"
+                          label="View User Details"
+                          onClick={() => setSelectedUserId(u.id)}
+                        />
+                        {userLocked ? (
+                          <ActionIconButton
+                            icon="unlock"
+                            tone="warning"
+                            label="Unlock Account"
+                            disabled={unlockUser.isPending}
+                            onClick={() => {
+                              unlockUser.mutate(u.id, {
+                                onSuccess: () => setMsg(`Unlocked account for ${u.fullName}`),
+                                onError: (err) => setMsg(getErrorMessage(err)),
+                              });
+                            }}
+                          />
+                        ) : null}
+                        <ActionIconButton
+                          icon={u.status === 'ACTIVE' ? 'ban' : 'check'}
+                          tone={u.status === 'ACTIVE' ? 'danger' : 'success'}
+                          label={u.status === 'ACTIVE' ? 'Suspend Account' : 'Activate Account'}
+                          disabled={updateStatus.isPending}
+                          onClick={() => {
+                            const next = u.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+                            updateStatus.mutate(
+                              { id: u.id, status: next },
+                              {
+                                onSuccess: () => setMsg(`Updated ${u.fullName}`),
+                                onError: (err) => setMsg(getErrorMessage(err)),
+                              },
+                            );
+                          }}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -479,13 +504,7 @@ function SellersTab() {
 
   return (
     <>
-      <header className={styles.pageHead}>
-        <div>
-          <p className={styles.kicker}>Moderation</p>
-          <h1>Sellers & Stores</h1>
-          <p>Merchant identity verification, review queues, and catalog access.</p>
-        </div>
-      </header>
+
 
       {msg ? <Alert tone="success">{msg}</Alert> : null}
       {isLoading ? <TableSkeleton /> : null}
@@ -640,13 +659,7 @@ function ProductsTab() {
 
   return (
     <>
-      <header className={styles.pageHead}>
-        <div>
-          <p className={styles.kicker}>Catalog</p>
-          <h1>Product Moderation</h1>
-          <p>Review listings before they appear live on the public storefront.</p>
-        </div>
-      </header>
+
 
       {msg ? <Alert tone="success">{msg}</Alert> : null}
       {pending.isLoading ? <TableSkeleton /> : null}
@@ -803,13 +816,7 @@ function OrdersTab() {
 
   return (
     <>
-      <header className={styles.pageHead}>
-        <div>
-          <p className={styles.kicker}>Operations</p>
-          <h1>Orders Overview</h1>
-          <p>Marketplace-wide order activity, customer payments, and fulfillment tracking.</p>
-        </div>
-      </header>
+
 
       <TableCard>
         <TableBanner
@@ -936,13 +943,7 @@ function CmsTab() {
 
   return (
     <>
-      <header className={styles.pageHead}>
-        <div>
-          <p className={styles.kicker}>Content</p>
-          <h1>CMS</h1>
-          <p>Banners and published pages.</p>
-        </div>
-      </header>
+
       {msg ? <Alert tone="success">{msg}</Alert> : null}
       <div className={styles.cmsGrid}>
         <article className={styles.panel}>
@@ -1055,13 +1056,7 @@ function SettingsTab() {
 
   return (
     <>
-      <header className={styles.pageHead}>
-        <div>
-          <p className={styles.kicker}>Platform</p>
-          <h1>Settings</h1>
-          <p>Operational configuration for the hub.</p>
-        </div>
-      </header>
+
       <div className={styles.split}>
       <section className={styles.panel}>
         <div className={styles.panelHead}>
@@ -1165,15 +1160,7 @@ function AuditTab() {
 
   return (
     <>
-      <header className={styles.pageHead}>
-        <div className={styles.pageHeadCopy}>
-          <p className={styles.kicker}>Security &amp; Governance</p>
-          <h1>Audit &amp; Activity Logs</h1>
-          <p>
-            Track real-time authentication events, payout requests, administrative changes, and catalog moderation.
-          </p>
-        </div>
-      </header>
+
 
       {/* KPI Summary Cards */}
       <div className={styles.kpis}>
@@ -1647,15 +1634,7 @@ function PayoutsTab() {
 
   return (
     <>
-      <header className={styles.pageHead}>
-        <div>
-          <p className={styles.kicker}>Finance</p>
-          <h1>Payouts & Disbursals</h1>
-          <p>
-            Review withdrawals and disburse funds to seller Mobile Money accounts via FDI.
-          </p>
-        </div>
-      </header>
+
 
       {msg ? <Alert tone={msg.tone}>{msg.text}</Alert> : null}
       {isLoading ? <TableSkeleton /> : null}
@@ -2002,16 +1981,7 @@ function DisputesTab() {
 
   return (
     <>
-      <header className={styles.pageHead}>
-        <div>
-          <p className={styles.kicker}>Support</p>
-          <h1>Disputes & returns</h1>
-          <p>
-            Every order dispute lands here automatically. Follow the customer–seller conversation,
-            join it when needed, and record the decision.
-          </p>
-        </div>
-      </header>
+
       <OrderDisputesPanel />
       {msg ? <Alert tone={msg.tone}>{msg.text}</Alert> : null}
       {isError ? <Alert tone="error">{getErrorMessage(error)}</Alert> : null}
@@ -2141,13 +2111,7 @@ function ProfileTab() {
   const { data: user } = useMe();
   return (
     <>
-      <header className={styles.pageHead}>
-        <div>
-          <p className={styles.kicker}>Account</p>
-          <h1>Admin profile</h1>
-          <p>Signed-in operations identity.</p>
-        </div>
-      </header>
+
       <section className={styles.panel}>
         <div className={styles.panelBody}>
           <div className={styles.item}>

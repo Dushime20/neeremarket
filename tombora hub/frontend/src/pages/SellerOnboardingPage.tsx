@@ -7,9 +7,8 @@ import {
   useSellerOnboarding,
   type SellerOnboarding,
 } from '@/api/hooks';
-import { Alert, Badge, Button, EmptyState, Input, TableSkeleton } from '@/components/ui';
+import { Alert, Button, EmptyState, Input, TableSkeleton } from '@/components/ui';
 import { getErrorMessage } from '@/api/client';
-import { prettyStatus, statusTone } from '@/utils/status';
 import styles from './workspace.module.css';
 
 type OnboardingForm = {
@@ -180,23 +179,13 @@ export function SellerOnboardingPage() {
         <title>Seller onboarding | NeereMarket</title>
       </Helmet>
 
-      <header className={styles.pageHead}>
-        <div>
-          <p className={styles.kicker}>Verification</p>
-          <h1>Onboarding</h1>
-          <p>
-            Complete KYC and payout details so admin can verify {onboarding?.businessName || 'your store'}.{' '}
-            <Badge tone={statusTone(status)}>{prettyStatus(status)}</Badge>
-          </p>
-        </div>
-        <div className={styles.actions}>
-          <Link to="/seller/profile">
-            <Button type="button" size="sm" variant="secondary">
-              Store profile
-            </Button>
-          </Link>
-        </div>
-      </header>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+        <Link to="/seller/profile">
+          <Button type="button" size="sm" variant="secondary">
+            Store profile
+          </Button>
+        </Link>
+      </div>
 
       {isLoading ? <TableSkeleton rows={6} /> : null}
       {isError ? <Alert tone="error">{getErrorMessage(error)}</Alert> : null}

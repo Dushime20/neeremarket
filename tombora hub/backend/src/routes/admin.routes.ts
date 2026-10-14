@@ -19,6 +19,11 @@ adminRouter.patch(
   requirePermission('sellers.suspend'),
   asyncHandler(adminController.updateUserStatus),
 );
+adminRouter.post(
+  '/users/:id/unlock',
+  requirePermission('sellers.suspend'),
+  asyncHandler(adminController.unlockUser),
+);
 
 adminRouter.get(
   '/sellers',

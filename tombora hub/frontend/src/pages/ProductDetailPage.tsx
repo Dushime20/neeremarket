@@ -477,7 +477,7 @@ export function ProductDetailPage() {
                     />
                   </label>
                   <div className={styles.composerActions}>
-                    <Button type="submit" disabled={createReview.isPending}>
+                    <Button type="submit" variant="primary" disabled={createReview.isPending}>
                       {createReview.isPending ? 'Submitting…' : 'Submit review'}
                     </Button>
                     {!user ? (
@@ -569,6 +569,7 @@ export function ProductDetailPage() {
               <div className={styles.actions}>
                 <Button
                   type="button"
+                  variant="primary"
                   className={styles.addToCart}
                   disabled={
                     !selected || (selected.inventory?.available ?? 0) < 1 || addToCart.isPending
@@ -642,7 +643,7 @@ export function ProductDetailPage() {
 
               <div className={styles.sellerBox}>
                 {product.store.seller.verificationStatus === 'VERIFIED' ? (
-                  <Badge>Verified seller</Badge>
+                  <Badge tone="brand">Verified seller</Badge>
                 ) : null}
                 <Link to={`/stores/${product.store.slug}`}>
                   <strong>{product.store.name}</strong>
@@ -666,7 +667,7 @@ export function ProductDetailPage() {
                     placeholder="Ask about size, delivery, or stock…"
                   />
                 </label>
-                <Button type="submit" disabled={sendMessage.isPending}>
+                <Button type="submit" variant="primary" disabled={sendMessage.isPending}>
                   Send message
                 </Button>
               </form>

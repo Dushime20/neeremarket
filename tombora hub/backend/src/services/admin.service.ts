@@ -77,6 +77,8 @@ export async function listUsers(page = 1, limit = 20, q?: string) {
         phone: true,
         fullName: true,
         status: true,
+        failedLoginCount: true,
+        lockedUntil: true,
         createdAt: true,
         roles: { include: { role: { select: { code: true } } } },
       },
@@ -102,6 +104,8 @@ export async function getUser(userId: string) {
       phone: true,
       fullName: true,
       status: true,
+      failedLoginCount: true,
+      lockedUntil: true,
       avatarUrl: true,
       emailVerifiedAt: true,
       phoneVerifiedAt: true,
@@ -167,7 +171,10 @@ export async function updateUserStatus(
 
   const updated = await prisma.user.update({
     where: { id: userId },
-    data: { status },
+    data: {
+      status,
+      ...(status === 'ACTIVE' ? { failedLoginCount: 0, lockedUntil: null } : {}),
+    },
   });
 
   await writeAuditLog({
@@ -177,6 +184,33 @@ export async function updateUserStatus(
     entityId: userId,
     before: { status: user.status },
     after: { status },
+    ip,
+  });
+
+  return updated;
+}
+
+export async function unlockUser(actorId: string, userId: string, ip?: string) {
+  const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
+  if (!user) throw Errors.notFound('User');
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      status: 'ACTIVE',
+      failedLoginCount: 0,
+      lockedUntil: null,
+    },
+  });
+
+  await writeAuditLog({
+    actorId,
+    action: 'user.unlocked',
+    entityType: 'User',
+    entityId: userId,
+    before: { failedLoginCount: user.failedLoginCount, lockedUntil: user.lockedUntil, status: user.status },
+    after: { failedLoginCount: 0, lockedUntil: null, status: 'ACTIVE' },
+    reason: 'Admin manually unlocked account and reset failed login attempts',
     ip,
   });
 

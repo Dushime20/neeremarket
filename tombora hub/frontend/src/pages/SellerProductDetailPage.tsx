@@ -116,15 +116,11 @@ export function SellerProductDetailPage() {
         <title>{product.name} | Catalog</title>
       </Helmet>
 
-      <header className={styles.pageHead}>
-        <div>
-          <p className={styles.kicker}>Catalog</p>
-          <h1>{product.name}</h1>
-          <div className={styles.pageMeta}>
-            <Badge tone={statusTone(product.status)}>{prettyStatus(product.status)}</Badge>
-            <span className={styles.muted}>{categoryPath(product.category)}</span>
-            {product.sku ? <span className={styles.muted}>SKU {product.sku}</span> : null}
-          </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', paddingBottom: '0.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <Badge tone={statusTone(product.status)}>{prettyStatus(product.status)}</Badge>
+          <span className={styles.muted} style={{ fontSize: 'var(--text-xs)' }}>{categoryPath(product.category)}</span>
+          {product.sku ? <span className={styles.muted} style={{ fontSize: 'var(--text-xs)' }}>• SKU {product.sku}</span> : null}
         </div>
         <div className={styles.actions}>
           {live ? (
@@ -153,7 +149,7 @@ export function SellerProductDetailPage() {
             Delete
           </Button>
         </div>
-      </header>
+      </div>
 
       {message ? <Alert tone="success">{message}</Alert> : null}
       {actionError ? <Alert tone="error">{actionError}</Alert> : null}

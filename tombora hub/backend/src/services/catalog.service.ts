@@ -19,6 +19,12 @@ type UpdateProductInput = z.infer<typeof updateProductSchema>;
 
 const productCardInclude = {
   images: { orderBy: { sortOrder: 'asc' as const }, take: 1 },
+  variants: {
+    where: { isActive: true },
+    orderBy: { createdAt: 'asc' as const },
+    take: 1,
+    include: { inventory: true },
+  },
   store: {
     include: {
       seller: {

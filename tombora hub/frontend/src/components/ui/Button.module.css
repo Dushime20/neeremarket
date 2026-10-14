@@ -70,3 +70,18 @@
   background: var(--color-danger);
   color: #fff;
 }
+
+.system {
+  background: #6b8f6b;
+  border-color: #6b8f6b;
+  color: #fff;
+  box-shadow: none;
+}
+
+.system:hover:not(:disabled) {
+  background: #547354;
+  border-color: #547354;
+  box-shadow: none;
+  transform: none;
+}
+

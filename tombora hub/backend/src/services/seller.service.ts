@@ -55,7 +55,7 @@ export async function listStores(page = 1, limit = 24, district?: string) {
         _count: { select: { products: { where: { status: 'ACTIVE', deletedAt: null } } } },
         products: {
           where: { status: 'ACTIVE', deletedAt: null },
-          take: 4,
+          take: 8,
           orderBy: { createdAt: 'desc' },
           select: {
             id: true,

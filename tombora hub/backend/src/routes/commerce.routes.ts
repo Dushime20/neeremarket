@@ -42,3 +42,4 @@ paymentRouter.post(
 export const sellerOrderRouter = Router();
 sellerOrderRouter.use(requireAuth, requireRole('SELLER', 'SUPER_ADMIN', 'ADMIN'));
 sellerOrderRouter.get('/me/orders', asyncHandler(commerceController.listSellerOrders));
+sellerOrderRouter.get('/me/orders/:id', asyncHandler(commerceController.getSellerOrder));

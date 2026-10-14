@@ -50,7 +50,8 @@
   background: #fff;
   color: var(--color-ink);
   border-top: 1px solid rgba(26, 35, 50, 0.08);
-  box-shadow: 0 18px 40px rgba(20, 40, 60, 0.18);
+  box-shadow: none;
+  border-bottom: 2px solid #e2e8f0;
 }
 
 .panelInner {
@@ -143,7 +144,7 @@
 }
 
 .sidebarItemActive {
-  background: #fff;
+  background: var(--color-brand-soft);
   color: var(--color-brand);
 }
 

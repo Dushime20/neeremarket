@@ -52,13 +52,7 @@ export function InboxPage({
       <Helmet>
         <title>Messages | NeereMarket</title>
       </Helmet>
-      <header className={styles.pageHead}>
-        <div>
-          <p className={styles.kicker}>Inbox</p>
-          <h1>Messages</h1>
-          <p>{scopeAll ? 'All marketplace conversations.' : 'Buyer conversations for your store.'}</p>
-        </div>
-      </header>
+
       {error ? <Alert tone="error">{error}</Alert> : null}
       <div className={styles.inbox}>
         <aside className={styles.threadList}>

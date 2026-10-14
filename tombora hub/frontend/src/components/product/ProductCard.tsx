@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { ProductListItem } from '@/api/hooks';
-import { Badge, Rating } from '@/components/ui';
+import { Rating } from '@/components/ui';
 import { PriceDisplay } from './PriceDisplay';
 import { discountPercent } from '@/utils/money';
 import styles from './ProductCard.module.css';
@@ -9,7 +9,6 @@ type Props = { product: ProductListItem };
 
 export function ProductCard({ product }: Props) {
   const pct = discountPercent(product.price, product.discountPrice);
-  const verified = product.store.seller.verificationStatus === 'VERIFIED';
 
   return (
     <article className={styles.card}>
@@ -28,7 +27,6 @@ export function ProductCard({ product }: Props) {
         <Rating value={product.ratingAvg} count={product.ratingCount} />
         <PriceDisplay price={product.price} discountPrice={product.discountPrice} />
         <p className={styles.seller}>
-          {verified ? <Badge>Verified</Badge> : null}
           <Link to={`/stores/${product.store.slug}`}>{product.store.name}</Link>
           {product.store.seller.district ? (
             <span className={styles.loc}>{product.store.seller.district}</span>

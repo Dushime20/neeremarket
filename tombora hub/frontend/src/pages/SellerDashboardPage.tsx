@@ -2,7 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useMe, useSellerDashboard, useSellerOrders, useSellerProducts } from '@/api/hooks';
 import { Alert, Badge, Button, EmptyState, TableSkeleton } from '@/components/ui';
-import { ICONS, MetricIcon, greeting, todayLabel } from '@/components/dashboard/metrics';
+import { ICONS, MetricIcon } from '@/components/dashboard/metrics';
 import { getErrorMessage } from '@/api/client';
 import { isSellerRole } from '@/utils/auth';
 import { formatRwf } from '@/utils/money';
@@ -63,35 +63,37 @@ export function SellerDashboardPage() {
         <title>Seller overview | NeereMarket</title>
       </Helmet>
 
-      <header className={styles.pageHead}>
+      <div className={styles.pageHead}>
         <div className={styles.pageHeadCopy}>
-          <p className={styles.kicker}>{todayLabel()}</p>
-          <h1>
-            {greeting()}, {seller?.businessName || store?.name || 'seller'}
-          </h1>
-          <p>Track sales, stock, and store performance from one workspace.</p>
-          <div className={styles.pageMeta}>
-            {store?.name ? <span className={styles.muted}>{store.name}</span> : null}
-            <Badge tone={statusTone(seller?.verificationStatus)}>
+          <p className={styles.kicker}>Seller Console</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+            <h1 style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0, letterSpacing: '-0.025em', color: '#0f172a' }}>
+              {store?.name || seller?.businessName || 'Your Store Overview'}
+            </h1>
+            <Badge tone={statusTone(seller?.verificationStatus || 'PENDING')}>
               {prettyStatus(seller?.verificationStatus || 'PENDING')}
             </Badge>
           </div>
+          <p className={styles.muted} style={{ margin: '0.2rem 0 0' }}>
+            Welcome back! Monitor your sales, fulfillment queues, and inventory health in real-time.
+          </p>
         </div>
+
         <div className={styles.actions}>
           {store ? (
             <Link to={`/stores/${store.slug}`}>
               <Button variant="secondary" type="button" size="sm">
-                Storefront
+                Storefront ↗
               </Button>
             </Link>
           ) : null}
           <Link to="/seller/products/new">
             <Button type="button" size="sm">
-              Add product
+              + Add product
             </Button>
           </Link>
         </div>
-      </header>
+      </div>
 
       {isLoading ? <TableSkeleton rows={5} /> : null}
       {isError ? <Alert tone="error">{getErrorMessage(error)}</Alert> : null}

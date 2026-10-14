@@ -144,22 +144,6 @@ export function SellerProductsPage() {
         <title>Catalog | NeereMarket</title>
       </Helmet>
 
-      <header className={styles.pageHead}>
-        <div>
-          <p className={styles.kicker}>Catalog</p>
-          <h1>Listings</h1>
-          <p>
-            {data?.pagination.total ?? 0} products
-            {q ? ` matching “${q}”` : ' in this view'}
-          </p>
-        </div>
-        <Link to="/seller/products/new">
-          <Button type="button" size="sm">
-            Add product
-          </Button>
-        </Link>
-      </header>
-
       <TableCard>
         <TableBanner
           icon={
@@ -232,122 +216,249 @@ export function SellerProductsPage() {
           </div>
         ) : null}
         {allProducts.length ? (
-          <div className={styles.tableWrap}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <SortTh>Product</SortTh>
-                  <SortTh>Category</SortTh>
-                  <SortTh align="right">Price</SortTh>
-                  <SortTh>Stock</SortTh>
-                  <SortTh>Status</SortTh>
-                  <SortTh sortable={false}>Actions</SortTh>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedProducts.map((p) => {
-                  const rowStatus = p.status;
-                  const variants = p.variants || [];
-                  const out = variants.filter((v) => (v.inventory?.available ?? v.inventory?.quantity ?? 0) <= 0)
-                    .length;
-                  const units = variants.reduce(
-                    (sum, v) => sum + (v.inventory?.available ?? v.inventory?.quantity ?? 0),
-                    0,
-                  );
-                  const stockLabel = variants.length
-                    ? out
-                      ? `${out} of ${variants.length} out`
-                      : `${units} available`
-                    : '—';
-                  const live = rowStatus === 'ACTIVE' || rowStatus === 'OUT_OF_STOCK';
-                  const offMarket = rowStatus === 'ARCHIVED' || rowStatus === 'DRAFT';
-                  const rowBusy = busyId === p.id;
-                  return (
-                    <tr key={p.id}>
-                      <td>
-                        <div className={styles.item}>
-                          {p.images?.[0]?.url ? (
-                            <img className={styles.thumb} src={p.images[0].url} alt="" />
-                          ) : (
-                            <span className={styles.thumb} />
-                          )}
-                          <span>
-                            <strong>{p.name}</strong>
-                            <small>
-                              {variants.length
-                                ? variants
-                                    .slice(0, 3)
-                                    .map((v) => variantLabel(v.name, v.attributes))
-                                    .join(', ')
-                                : p.slug}
-                            </small>
+          <>
+            {/* Desktop Table View */}
+            <div className={`${styles.tableWrap} ${styles.desktopOnlyTable}`}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <SortTh>Product</SortTh>
+                    <SortTh>Category</SortTh>
+                    <SortTh align="right">Price</SortTh>
+                    <SortTh>Stock</SortTh>
+                    <SortTh>Status</SortTh>
+                    <SortTh sortable={false}>Actions</SortTh>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedProducts.map((p) => {
+                    const rowStatus = p.status;
+                    const variants = p.variants || [];
+                    const out = variants.filter((v) => (v.inventory?.available ?? v.inventory?.quantity ?? 0) <= 0)
+                      .length;
+                    const units = variants.reduce(
+                      (sum, v) => sum + (v.inventory?.available ?? v.inventory?.quantity ?? 0),
+                      0,
+                    );
+                    const stockLabel = variants.length
+                      ? out
+                        ? `${out} of ${variants.length} out`
+                        : `${units} available`
+                      : '—';
+                    const live = rowStatus === 'ACTIVE' || rowStatus === 'OUT_OF_STOCK';
+                    const offMarket = rowStatus === 'ARCHIVED' || rowStatus === 'DRAFT';
+                    const rowBusy = busyId === p.id;
+                    return (
+                      <tr key={p.id}>
+                        <td>
+                          <div className={styles.item}>
+                            {p.images?.[0]?.url ? (
+                              <img className={styles.thumb} src={p.images[0].url} alt="" />
+                            ) : (
+                              <span className={styles.thumb} />
+                            )}
+                            <span>
+                              <strong>{p.name}</strong>
+                              <small>
+                                {variants.length
+                                  ? variants
+                                      .slice(0, 3)
+                                      .map((v) => variantLabel(v.name, v.attributes))
+                                      .join(', ')
+                                  : p.slug}
+                              </small>
+                            </span>
+                          </div>
+                        </td>
+                        <td>{categoryPath(p.category)}</td>
+                        <td className={styles.num}>{formatRwf(p.discountPrice || p.price)}</td>
+                        <td>
+                          <Badge tone={out ? 'danger' : units <= variants.length * 2 ? 'warning' : 'success'}>
+                            {stockLabel}
+                          </Badge>
+                        </td>
+                        <td>
+                          <Badge tone={statusTone(rowStatus)}>{prettyStatus(rowStatus)}</Badge>
+                        </td>
+                        <td>
+                          <div className={styles.actions}>
+                            <Link to={`/seller/products/${p.id}`} title="View product details">
+                              <ActionIconButton
+                                icon="view"
+                                tone="neutral"
+                                title="View product details"
+                                aria-label="View product details"
+                              />
+                            </Link>
+                            <Link to={`/seller/products/${p.id}/edit`} title="Edit product">
+                              <ActionIconButton
+                                icon="edit"
+                                tone="brand"
+                                title="Edit product"
+                                aria-label="Edit product"
+                              />
+                            </Link>
+                            {live ? (
+                              <ActionIconButton
+                                icon="ban"
+                                tone="warning"
+                                title="Remove from market"
+                                aria-label="Remove from market"
+                                disabled={rowBusy}
+                                onClick={() => void unpublish(p.id, p.name)}
+                              />
+                            ) : null}
+                            {offMarket ? (
+                              <ActionIconButton
+                                icon="check"
+                                tone="success"
+                                title="Relist on market"
+                                aria-label="Relist on market"
+                                disabled={rowBusy}
+                                onClick={() => void relist(p.id, p.name)}
+                              />
+                            ) : null}
+                            <ActionIconButton
+                              icon="delete"
+                              tone="danger"
+                              title="Delete product"
+                              aria-label="Delete product"
+                              disabled={rowBusy}
+                              onClick={() => void remove(p.id, p.name)}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card-Based Products List */}
+            <div className={styles.mobileOnlyCards}>
+              {paginatedProducts.map((p) => {
+                const rowStatus = p.status;
+                const variants = p.variants || [];
+                const out = variants.filter((v) => (v.inventory?.available ?? v.inventory?.quantity ?? 0) <= 0).length;
+                const units = variants.reduce(
+                  (sum, v) => sum + (v.inventory?.available ?? v.inventory?.quantity ?? 0),
+                  0,
+                );
+                const stockLabel = variants.length
+                  ? out
+                    ? `${out} of ${variants.length} out`
+                    : `${units} available`
+                  : '—';
+                const live = rowStatus === 'ACTIVE' || rowStatus === 'OUT_OF_STOCK';
+                const offMarket = rowStatus === 'ARCHIVED' || rowStatus === 'DRAFT';
+                const rowBusy = busyId === p.id;
+
+                return (
+                  <article key={p.id} className={styles.mobileCard}>
+                    <div style={{ display: 'flex', gap: '0.85rem' }}>
+                      {p.images?.[0]?.url ? (
+                        <img
+                          src={p.images[0].url}
+                          alt={p.name}
+                          style={{
+                            width: '4.5rem',
+                            height: '4.5rem',
+                            borderRadius: '10px',
+                            objectFit: 'cover',
+                            border: '1px solid #e2e8f0',
+                            flexShrink: 0,
+                          }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: '4.5rem',
+                            height: '4.5rem',
+                            borderRadius: '10px',
+                            background: '#f1f5f9',
+                            border: '1px solid #e2e8f0',
+                            display: 'grid',
+                            placeItems: 'center',
+                            flexShrink: 0,
+                            color: '#94a3b8',
+                            fontSize: '0.75rem',
+                          }}
+                        >
+                          No photo
+                        </div>
+                      )}
+
+                      <div style={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+                          <Link
+                            to={`/seller/products/${p.id}`}
+                            style={{
+                              color: 'inherit',
+                              textDecoration: 'none',
+                              fontWeight: 700,
+                              fontSize: '0.9375rem',
+                              lineHeight: 1.25,
+                            }}
+                          >
+                            {p.name}
+                          </Link>
+                          <Badge tone={statusTone(rowStatus)}>{prettyStatus(rowStatus)}</Badge>
+                        </div>
+
+                        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                          {categoryPath(p.category)}
+                        </span>
+
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginTop: '0.35rem' }}>
+                          <span className={styles.mobileCardPrice}>
+                            {formatRwf(p.discountPrice || p.price)}
                           </span>
+                          <Badge tone={out ? 'danger' : units <= variants.length * 2 ? 'warning' : 'success'}>
+                            {stockLabel}
+                          </Badge>
                         </div>
-                      </td>
-                      <td>{categoryPath(p.category)}</td>
-                      <td className={styles.num}>{formatRwf(p.discountPrice || p.price)}</td>
-                      <td>
-                        <Badge tone={out ? 'danger' : units <= variants.length * 2 ? 'warning' : 'success'}>
-                          {stockLabel}
-                        </Badge>
-                      </td>
-                      <td>
-                        <Badge tone={statusTone(rowStatus)}>{prettyStatus(rowStatus)}</Badge>
-                      </td>
-                      <td>
-                        <div className={styles.actions}>
-                          <Link to={`/seller/products/${p.id}`} title="View product details">
-                            <ActionIconButton
-                              icon="view"
-                              tone="neutral"
-                              title="View product details"
-                              aria-label="View product details"
-                            />
-                          </Link>
-                          <Link to={`/seller/products/${p.id}/edit`} title="Edit product">
-                            <ActionIconButton
-                              icon="edit"
-                              tone="brand"
-                              title="Edit product"
-                              aria-label="Edit product"
-                            />
-                          </Link>
-                          {live ? (
-                            <ActionIconButton
-                              icon="ban"
-                              tone="warning"
-                              title="Remove from market"
-                              aria-label="Remove from market"
-                              disabled={rowBusy}
-                              onClick={() => void unpublish(p.id, p.name)}
-                            />
-                          ) : null}
-                          {offMarket ? (
-                            <ActionIconButton
-                              icon="check"
-                              tone="success"
-                              title="Relist on market"
-                              aria-label="Relist on market"
-                              disabled={rowBusy}
-                              onClick={() => void relist(p.id, p.name)}
-                            />
-                          ) : null}
-                          <ActionIconButton
-                            icon="delete"
-                            tone="danger"
-                            title="Delete product"
-                            aria-label="Delete product"
-                            disabled={rowBusy}
-                            onClick={() => void remove(p.id, p.name)}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                    </div>
+
+                    <div className={styles.mobileCardFoot}>
+                      <Link to={`/seller/products/${p.id}`} style={{ textDecoration: 'none' }}>
+                        <Button type="button" size="sm" variant="secondary" style={{ width: '100%' }}>
+                          View
+                        </Button>
+                      </Link>
+                      <Link to={`/seller/products/${p.id}/edit`} style={{ textDecoration: 'none' }}>
+                        <Button type="button" size="sm" variant="ghost" style={{ width: '100%' }}>
+                          Edit
+                        </Button>
+                      </Link>
+                      {live ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          disabled={rowBusy}
+                          onClick={() => void unpublish(p.id, p.name)}
+                        >
+                          Unpublish
+                        </Button>
+                      ) : offMarket ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          disabled={rowBusy}
+                          onClick={() => void relist(p.id, p.name)}
+                        >
+                          Relist
+                        </Button>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </>
         ) : null}
         <TablePagination
           page={page}

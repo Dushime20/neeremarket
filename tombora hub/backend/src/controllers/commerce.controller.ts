@@ -114,3 +114,9 @@ export async function listSellerOrders(req: Request, res: Response) {
   const data = await checkoutService.listSellerOrders(req.user.id, status);
   return success(res, data);
 }
+
+export async function getSellerOrder(req: Request, res: Response) {
+  if (!req.user) throw Errors.unauthorized();
+  const data = await checkoutService.getSellerOrder(req.user.id, String(req.params.id));
+  return success(res, data);
+}

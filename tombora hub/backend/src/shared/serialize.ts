@@ -1,10 +1,18 @@
 export function toPlainProduct<T extends Record<string, unknown>>(product: T) {
   const price = product.price;
   const discountPrice = product.discountPrice;
+  const rawVariants = product.variants;
+  const variants = Array.isArray(rawVariants)
+    ? rawVariants.map((v: Record<string, unknown>) => ({
+        ...v,
+        price: v?.price != null ? String(v.price) : null,
+      }))
+    : rawVariants;
   return {
     ...product,
     price: price != null ? String(price) : price,
     discountPrice: discountPrice != null ? String(discountPrice) : null,
+    ...(variants !== undefined ? { variants } : {}),
   };
 }
 

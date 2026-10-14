@@ -50,6 +50,16 @@ export async function updateUserStatus(req: Request, res: Response) {
   return success(res, { user }, 'User status updated');
 }
 
+export async function unlockUser(req: Request, res: Response) {
+  if (!req.user) throw Errors.unauthorized();
+  const user = await adminService.unlockUser(
+    req.user.id,
+    String(req.params.id),
+    clientIp(req),
+  );
+  return success(res, { user }, 'User account unlocked');
+}
+
 export async function listSellers(req: Request, res: Response) {
   if (!req.user) throw Errors.unauthorized();
   const page = Math.max(1, Number(req.query.page) || 1);

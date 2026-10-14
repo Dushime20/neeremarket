@@ -51,6 +51,7 @@ import { DisputeDetailPage } from '@/pages/DisputeDetailPage';
 import { SellerDisputeDetailPage } from '@/pages/SellerDisputeDetailPage';
 import { AdminDisputeDetailPage } from '@/pages/AdminDisputeDetailPage';
 import { AdminOrderDetailPage } from '@/pages/AdminOrderDetailPage';
+import { SellerOrderDetailPage } from '@/pages/SellerOrderDetailPage';
 
 export function AppRouter() {
   return (
@@ -66,6 +67,7 @@ export function AppRouter() {
           <Route path="seller/reviews" element={<SellerReviewsPage />} />
           <Route path="seller/finance" element={<SellerFinancePage />} />
           <Route path="seller/orders" element={<SellerOrdersPage />} />
+          <Route path="seller/orders/:id" element={<SellerOrderDetailPage />} />
           <Route path="seller/messages" element={<InboxPage basePath="/seller/messages" />} />
           <Route path="seller/messages/:threadId" element={<InboxPage basePath="/seller/messages" />} />
           <Route path="seller/disputes" element={<SellerDisputesPage />} />

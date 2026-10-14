@@ -7,6 +7,7 @@ import {
   useModerateProduct,
   useModerateSeller,
   useUpdateUserStatus,
+  useUnlockUser,
 } from '@/api/hooks';
 import { Badge, Button, TableSkeleton, useConfirm, useToast } from '@/components/ui';
 import { formatRwf } from '@/utils/money';
@@ -26,8 +27,30 @@ export function UserDetailModal({
 }) {
   const { data: user, isLoading, isError } = useAdminUser(userId);
   const updateStatus = useUpdateUserStatus();
+  const unlockUser = useUnlockUser();
   const confirm = useConfirm();
   const toast = useToast();
+
+  const isLocked = !!(user?.lockedUntil && new Date(user.lockedUntil) > new Date());
+
+  async function handleUnlock() {
+    if (!user) return;
+    const ok = await confirm({
+      title: 'Unlock user account',
+      message: `Unlock ${user.fullName}'s account and reset failed login attempts?`,
+      confirmText: 'Unlock account',
+      tone: 'info',
+    });
+    if (!ok) return;
+
+    try {
+      await unlockUser.mutateAsync(user.id);
+      toast.success(`Account unlocked for ${user.fullName}`);
+      onStatusUpdated?.();
+    } catch {
+      toast.error('Failed to unlock user account');
+    }
+  }
 
   async function handleToggleStatus() {
     if (!user) return;
@@ -66,6 +89,7 @@ export function UserDetailModal({
             <h2 id="user-modal-title" className={styles.title}>
               {user?.fullName || 'User Details'}
               {user ? <Badge tone={statusTone(user.status)}>{prettyStatus(user.status)}</Badge> : null}
+              {isLocked ? <Badge tone="danger">Temporarily Locked</Badge> : null}
             </h2>
           </div>
           <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close dialog">
@@ -81,6 +105,42 @@ export function UserDetailModal({
 
           {user ? (
             <>
+              {isLocked ? (
+                <div
+                  style={{
+                    padding: '0.85rem 1rem',
+                    marginBottom: '1rem',
+                    borderRadius: '8px',
+                    background: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '0.75rem',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div>
+                    <strong style={{ color: '#991b1b', display: 'block', fontSize: '0.875rem' }}>
+                      Account is temporarily locked
+                    </strong>
+                    <span style={{ color: '#7f1d1d', fontSize: '0.8125rem' }}>
+                      Locked due to {user.failedLoginCount || 5} consecutive failed logins until{' '}
+                      {new Date(user.lockedUntil!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="primary"
+                    disabled={unlockUser.isPending}
+                    onClick={handleUnlock}
+                  >
+                    {unlockUser.isPending ? 'Unlocking...' : 'Unlock Account'}
+                  </Button>
+                </div>
+              ) : null}
+
               <section className={styles.section}>
                 <div className={styles.sectionHead}>
                   <h3 className={styles.sectionTitle}>Account Identity</h3>
@@ -248,6 +308,16 @@ export function UserDetailModal({
           <Button type="button" variant="secondary" onClick={onClose}>
             Close
           </Button>
+          {user && isLocked ? (
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={unlockUser.isPending}
+              onClick={handleUnlock}
+            >
+              {unlockUser.isPending ? 'Unlocking...' : 'Unlock Account'}
+            </Button>
+          ) : null}
           {user ? (
             <Button
               type="button"

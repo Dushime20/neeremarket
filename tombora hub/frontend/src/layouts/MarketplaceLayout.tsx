@@ -117,7 +117,7 @@ export function MarketplaceLayout() {
             </button>
           </form>
 
-          <nav className={styles.actions} aria-label="Account">
+          <nav className={styles.actions} aria-label="Quick Activity">
             <NavLink
               to="/wishlist"
               className={`${styles.actionIconLink} ${styles.hideOnMobile}`}
@@ -140,9 +140,27 @@ export function MarketplaceLayout() {
               </span>
               <span className={styles.actionIconLabel}>Wishlist</span>
             </NavLink>
-            <NavLink to="/messages" className={styles.hideOnCompact}>
-              Messages
+
+            <NavLink
+              to="/messages"
+              className={`${styles.actionIconLink} ${styles.hideOnCompact}`}
+              aria-label="Messages"
+              title="Messages"
+            >
+              <span className={styles.actionIconWrap}>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8A2.5 2.5 0 0 1 17.5 17H9l-4 3v-3.2A2.5 2.5 0 0 1 4 14.5v-8z"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+              <span className={styles.actionIconLabel}>Messages</span>
             </NavLink>
+
             <NavLink
               to="/notifications"
               className={`${styles.actionIconLink} ${styles.hideOnMobile}`}
@@ -165,6 +183,7 @@ export function MarketplaceLayout() {
               </span>
               <span className={styles.actionIconLabel}>Alerts</span>
             </NavLink>
+
             <NavLink
               to="/cart"
               className={styles.actionIconLink}
@@ -190,46 +209,62 @@ export function MarketplaceLayout() {
               </span>
               <span className={styles.actionIconLabel}>Cart</span>
             </NavLink>
-            {user ? (
-              <>
-                <NavLink to="/orders" className={styles.hideOnCompact}>
-                  Orders
-                </NavLink>
-                {!hasSellerAccount(user.roles) && !isAdminRole(user.roles) ? (
-                  <NavLink to="/account">Account</NavLink>
-                ) : null}
-                {hasSellerAccount(user.roles) ? <NavLink to="/seller">Seller</NavLink> : null}
-                {isAdminRole(user.roles) ? <NavLink to="/admin">Admin</NavLink> : null}
-                <button type="button" className={styles.logout} onClick={() => logout.mutate()}>
-                  Log out
-                </button>
-              </>
-            ) : (
-              <Link to="/login" className={styles.authJoin} aria-label="Sign In or Join">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <circle cx="12" cy="8" r="3.25" fill="none" stroke="currentColor" strokeWidth="1.7" />
-                  <path
-                    d="M5.5 19.5c1.6-3.2 3.9-4.8 6.5-4.8s4.9 1.6 6.5 4.8"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.7"
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <span>Sign In / Join</span>
-              </Link>
-            )}
           </nav>
         </div>
 
         <div className={styles.catsWrap}>
           <nav className={`container ${styles.cats}`} aria-label="Marketplace">
-            <CategoryMegaMenu categories={categories || []} />
-            <span className={styles.navSplit} aria-hidden="true" />
-            <NavLink to="/why-neeremarket">Why {APP_NAME}</NavLink>
-            <NavLink to="/how-it-works">How it works</NavLink>
-            <NavLink to="/sell">For sellers</NavLink>
-            <NavLink to="/stores">Stores</NavLink>
+            <div className={styles.catsLeft}>
+              <CategoryMegaMenu categories={categories || []} />
+              <span className={styles.navSplit} aria-hidden="true" />
+              <NavLink to="/why-neeremarket">Why {APP_NAME}</NavLink>
+              <NavLink to="/how-it-works">How it works</NavLink>
+              <NavLink to="/sell">For sellers</NavLink>
+              <NavLink to="/stores">Stores</NavLink>
+            </div>
+
+            <div className={styles.catsRight}>
+              {user ? (
+                <>
+                  <NavLink to="/orders" className={styles.accountSubLink}>
+                    Orders
+                  </NavLink>
+                  {!hasSellerAccount(user.roles) && !isAdminRole(user.roles) ? (
+                    <NavLink to="/account" className={styles.accountSubLink}>
+                      Account
+                    </NavLink>
+                  ) : null}
+                  {hasSellerAccount(user.roles) ? (
+                    <NavLink to="/seller" className={styles.accountSubLink}>
+                      Seller
+                    </NavLink>
+                  ) : null}
+                  {isAdminRole(user.roles) ? (
+                    <NavLink to="/admin" className={styles.accountSubLink}>
+                      Admin
+                    </NavLink>
+                  ) : null}
+                  <span className={styles.subDivider} aria-hidden="true">·</span>
+                  <button type="button" className={styles.logout} onClick={() => logout.mutate()}>
+                    Log out
+                  </button>
+                </>
+              ) : (
+                <Link to="/login" className={styles.authJoinLink} aria-label="Sign In or Join">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="8" r="3.25" fill="none" stroke="currentColor" strokeWidth="1.7" />
+                    <path
+                      d="M5.5 19.5c1.6-3.2 3.9-4.8 6.5-4.8s4.9 1.6 6.5 4.8"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  <span>Sign In / Join</span>
+                </Link>
+              )}
+            </div>
           </nav>
         </div>
       </header>
