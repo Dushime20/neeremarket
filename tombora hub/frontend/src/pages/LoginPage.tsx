@@ -55,7 +55,7 @@ export function LoginPage() {
   return (
     <form className={styles.form} onSubmit={onSubmit}>
       <Helmet>
-        <title>Sign In | {APP_NAME}</title>
+        <title>{`Sign In | ${APP_NAME}`}</title>
       </Helmet>
       <h1 className="sr-only">Sign In</h1>
       {error ? (

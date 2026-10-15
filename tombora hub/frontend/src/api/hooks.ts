@@ -696,7 +696,20 @@ export function useOrders(enabled = true) {
             status: string;
             total: string;
             createdAt: string;
-            sellerOrders?: Array<{ sellerOrderNumber: string; sellerName: string }>;
+            sellerOrders?: Array<{
+              id?: string;
+              sellerOrderNumber: string;
+              sellerName: string;
+              status?: string;
+              subtotal?: string;
+              items?: Array<{
+                id?: string;
+                productName: string;
+                quantity: number;
+                lineTotal?: string;
+                unitPrice?: string;
+              }>;
+            }>;
           }>;
         }>
       >('/orders');
@@ -987,6 +1000,7 @@ export function useNotifications() {
             type: string;
             title: string;
             body: string;
+            data?: Record<string, unknown> | null;
             readAt: string | null;
             createdAt: string;
           }>;
@@ -1005,6 +1019,17 @@ export function useMarkNotificationsRead() {
   return useMutation({
     mutationFn: async () => {
       const { data } = await api.post('/notifications/read-all');
+      return data.data;
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+}
+
+export function useMarkNotificationRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.post(`/notifications/${id}/read`);
       return data.data;
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['notifications'] }),

@@ -82,7 +82,7 @@ export function SellerOrderDetailPage() {
   return (
     <div className={styles.stack}>
       <Helmet>
-        <title>Order {order.sellerOrderNumber} | NeereMarket</title>
+        <title>{`Order ${order.sellerOrderNumber} | NeereMarket`}</title>
       </Helmet>
 
       {/* Action header */}

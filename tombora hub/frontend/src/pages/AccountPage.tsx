@@ -9,10 +9,10 @@ import {
   useOrders,
   useWishlist,
 } from '@/api/hooks';
-import { Badge, Button, EmptyState, Skeleton } from '@/components/ui';
+import { Badge, Button, EmptyState, Skeleton, useToast } from '@/components/ui';
 import { greeting, initials } from '@/components/dashboard/metrics';
 import { APP_NAME, pageTitle } from '@/config/brand';
-import { accountDisplayName, loginHref } from '@/utils/auth';
+import { accountDisplayName, isAdminRole, isSellerRole, loginHref } from '@/utils/auth';
 import { formatRwf } from '@/utils/money';
 import { prettyStatus, statusTone } from '@/utils/status';
 import styles from './AccountPage.module.css';
@@ -20,8 +20,10 @@ import styles from './AccountPage.module.css';
 export function AccountPage() {
   const navigate = useNavigate();
   const logout = useLogout();
+  const toast = useToast();
   const { data: user, isLoading: userLoading } = useMe();
   const loggedIn = !!user;
+
   const { data: orders, isLoading: ordersLoading } = useOrders(loggedIn);
   const { data: wishlist } = useWishlist();
   const { data: notifications } = useNotifications();
@@ -36,9 +38,50 @@ export function AccountPage() {
   const unread = notifications?.unreadCount || 0;
   const messageCount = threads?.items.length || 0;
 
-  if (!userLoading && !user) {
+  const hasToken = Boolean(localStorage.getItem('th_access_token'));
+  const isSeller = isSellerRole(user?.roles);
+  const isAdmin = isAdminRole(user?.roles);
+
+  async function handleLogout() {
+    try {
+      await logout.mutateAsync();
+      toast.success('Signed out successfully');
+      navigate('/');
+    } catch {
+      navigate('/');
+    }
+  }
+
+  // Loading state while verifying user session on page refresh
+  if (userLoading || (hasToken && !user)) {
     return (
       <div className={`container ${styles.page}`}>
+        <Helmet>
+          <title>{pageTitle('Account')}</title>
+        </Helmet>
+        <section className={styles.hero}>
+          <div className={styles.heroProfile}>
+            <Skeleton height={56} width={56} />
+            <div className={styles.heroCopy}>
+              <Skeleton height={14} width="40%" />
+              <Skeleton height={22} width="65%" />
+            </div>
+          </div>
+        </section>
+        <div className={styles.stats}>
+          <Skeleton height={70} />
+          <Skeleton height={70} />
+          <Skeleton height={70} />
+          <Skeleton height={70} />
+        </div>
+      </div>
+    );
+  }
+
+  // Unauthenticated Guest View
+  if (!user) {
+    return (
+      <div className={`container ${styles.page}`} style={{ paddingTop: '2rem' }}>
         <Helmet>
           <title>{pageTitle('Account')}</title>
         </Helmet>
@@ -55,201 +98,300 @@ export function AccountPage() {
   return (
     <div className={`container ${styles.page}`}>
       <Helmet>
-        <title>{pageTitle('My account')}</title>
+        <title>{pageTitle('My Account')}</title>
       </Helmet>
 
+      {/* ── User Profile Hero Card ── */}
       <section className={styles.hero} aria-labelledby="account-heading">
-        {userLoading ? (
-          <>
-            <Skeleton height={56} width={56} />
-            <div className={styles.heroCopy}>
-              <Skeleton height={14} width="40%" />
-              <Skeleton height={22} width="55%" />
-            </div>
-          </>
-        ) : (
-          <>
-            <div className={styles.avatar} aria-hidden>
-              {initials(user?.fullName || user?.email || user?.phone)}
-            </div>
-            <div className={styles.heroCopy}>
-              <p className={styles.kicker}>{greeting()}</p>
-              <h1 id="account-heading">{name}</h1>
+        <div className={styles.heroProfile}>
+          <div className={styles.avatar} aria-hidden="true">
+            {initials(user?.fullName || user?.email || user?.phone)}
+          </div>
+          <div className={styles.heroCopy}>
+            <p className={styles.kicker}>{greeting()}</p>
+            <h1 id="account-heading">{name}</h1>
+            <div className={styles.metaRow}>
               <p className={styles.meta}>
                 {user?.email || user?.phone}
                 {user?.email && user?.phone ? ` · ${user.phone}` : null}
               </p>
+              {isSeller ? <Badge tone="brand">Merchant</Badge> : null}
+              {isAdmin ? <Badge tone="accent">Admin</Badge> : null}
             </div>
-            <div className={styles.heroActions}>
-              <Link to="/products">
-                <Button type="button" size="sm">
-                  Continue shopping
-                </Button>
-              </Link>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => logout.mutate(undefined, { onSettled: () => navigate('/') })}
-              >
-                Log out
-              </Button>
-            </div>
-          </>
-        )}
+          </div>
+        </div>
+
+        <div className={styles.heroActions}>
+          <Link to="/products" className={styles.actionBtn}>
+            <Button type="button" size="sm" variant="secondary" style={{ width: '100%', minHeight: '44px' }}>
+              Continue shopping
+            </Button>
+          </Link>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className={styles.actionBtn}
+            onClick={() => void handleLogout()}
+            style={{ minHeight: '44px' }}
+          >
+            Log out
+          </Button>
+        </div>
       </section>
 
-      <ul className={styles.stats}>
+      {/* ── Interactive 4-Pill Stats Grid ── */}
+      <ul className={styles.stats} aria-label="Account overview statistics">
         <li>
-          <strong>{orderCount}</strong>
-          <span>Orders</span>
+          <Link to="/orders" className={styles.statCard} title="View all orders">
+            <div className={styles.statNumberRow}>
+              <span className={styles.statNumber}>{orderCount}</span>
+            </div>
+            <span className={styles.statLabel}>Orders</span>
+          </Link>
         </li>
         <li>
-          <strong>{wishCount}</strong>
-          <span>Saved items</span>
+          <Link to="/wishlist" className={styles.statCard} title="View saved wishlist">
+            <div className={styles.statNumberRow}>
+              <span className={styles.statNumber}>{wishCount}</span>
+            </div>
+            <span className={styles.statLabel}>Wishlist</span>
+          </Link>
         </li>
         <li>
-          <strong>{messageCount}</strong>
-          <span>Conversations</span>
+          <Link to="/messages" className={styles.statCard} title="View seller messages">
+            <div className={styles.statNumberRow}>
+              <span className={styles.statNumber}>{messageCount}</span>
+            </div>
+            <span className={styles.statLabel}>Messages</span>
+          </Link>
         </li>
         <li>
-          <strong>{unread}</strong>
-          <span>Unread alerts</span>
+          <Link to="/notifications" className={styles.statCard} title="View notification alerts">
+            <div className={styles.statNumberRow}>
+              <span className={styles.statNumber}>{unread}</span>
+              {unread > 0 ? <span className={styles.statDot} aria-label="Unread alerts" /> : null}
+            </div>
+            <span className={styles.statLabel}>Alerts</span>
+          </Link>
         </li>
       </ul>
 
-      <nav className={styles.shortcuts} aria-label="Account shortcuts">
-        <Link to="/orders" className={styles.shortcut}>
-          <span className={styles.shortcutIcon} aria-hidden>
-            <svg viewBox="0 0 24 24">
-              <path
-                d="M6 7h12l1 14H5L6 7zm3 0V5a3 3 0 0 1 6 0v2"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </span>
-          <span>
-            <strong>My orders</strong>
-            <em>Track deliveries and past purchases</em>
-          </span>
-        </Link>
-        <Link to="/wishlist" className={styles.shortcut}>
-          <span className={styles.shortcutIcon} aria-hidden>
-            <svg viewBox="0 0 24 24">
-              <path
-                d="M12 20s-7-4.35-7-9.2A4.2 4.2 0 0 1 12 7.1a4.2 4.2 0 0 1 7 3.7C19 15.65 12 20 12 20z"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </span>
-          <span>
-            <strong>Wishlist</strong>
-            <em>Items you saved for later</em>
-          </span>
-        </Link>
-        <Link to="/messages" className={styles.shortcut}>
-          <span className={styles.shortcutIcon} aria-hidden>
-            <svg viewBox="0 0 24 24">
-              <path
-                d="M4 6h16v10H7l-3 3V6z"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </span>
-          <span>
-            <strong>Messages</strong>
-            <em>Chat with sellers about products</em>
-          </span>
-        </Link>
-        <Link to="/disputes" className={styles.shortcut}>
-          <span className={styles.shortcutIcon} aria-hidden>
-            <svg viewBox="0 0 24 24">
-              <path
-                d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </span>
-          <span>
-            <strong>Disputes</strong>
-            <em>Report late or problem deliveries</em>
-          </span>
-        </Link>
-        <Link to="/notifications" className={styles.shortcut}>
-          <span className={styles.shortcutIcon} aria-hidden>
-            <svg viewBox="0 0 24 24">
-              <path
-                d="M6 8a6 6 0 1 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9zm6 13a2.5 2.5 0 0 0 2.5-2.5h-5A2.5 2.5 0 0 0 12 21z"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </span>
-          <span>
-            <strong>Alerts</strong>
-            <em>Order and account notifications</em>
-          </span>
-        </Link>
-        <Link to="/checkout" className={styles.shortcut}>
-          <span className={styles.shortcutIcon} aria-hidden>
-            <svg viewBox="0 0 24 24">
-              <path
-                d="M12 21s7-4.4 7-11a7 7 0 1 0-14 0c0 6.6 7 11 7 11z"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinejoin="round"
-              />
-              <circle cx="12" cy="10" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.7" />
-            </svg>
-          </span>
-          <span>
-            <strong>Addresses</strong>
-            <em>Delivery details used at checkout</em>
-          </span>
-        </Link>
-        <Link to="/cart" className={styles.shortcut}>
-          <span className={styles.shortcutIcon} aria-hidden>
-            <svg viewBox="0 0 24 24">
-              <path
-                d="M6 6h15l-1.5 9H7.5L6 6zm0 0L5 3H2"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </span>
-          <span>
-            <strong>Cart</strong>
-            <em>Review items before checkout</em>
-          </span>
-        </Link>
-      </nav>
-
-      <div className={styles.columns}>
-        <section className={styles.panel}>
-          <div className={styles.panelHead}>
-            <h2>Recent orders</h2>
-            <Link to="/orders">View all</Link>
+      {/* ── Merchant / Seller Portal Switcher (If Applicable) ── */}
+      {isSeller ? (
+        <aside className={styles.sellerPortalCard} aria-label="Merchant portal access">
+          <div className={styles.sellerPortalText}>
+            <h3>
+              <span aria-hidden="true">🏬</span> Merchant Dashboard
+            </h3>
+            <p>Manage your inventory, fulfill orders, review payouts, and message customers.</p>
           </div>
+          <Link to="/seller" className={styles.sellerPortalBtn}>
+            Go to Seller Dashboard →
+          </Link>
+        </aside>
+      ) : null}
+
+      {isAdmin ? (
+        <aside className={styles.sellerPortalCard} style={{ background: '#f8fafc', borderColor: '#cbd5e1' }} aria-label="Admin console access">
+          <div className={styles.sellerPortalText}>
+            <h3 style={{ color: '#0f172a' }}>
+              <span aria-hidden="true">⚡</span> Platform Administration
+            </h3>
+            <p style={{ color: '#475569' }}>Access system analytics, order oversight, and dispute arbitration.</p>
+          </div>
+          <Link to="/admin" className={styles.sellerPortalBtn} style={{ background: '#0f172a' }}>
+            Open Admin Console →
+          </Link>
+        </aside>
+      ) : null}
+
+      {/* ── Grouped Mobile Navigation Menu ── */}
+      <section className={styles.menuSection} aria-label="Purchases and delivery">
+        <h2 className={styles.menuSectionHeader}>Purchases & Delivery</h2>
+        <ul className={styles.menuList}>
+          <li className={styles.menuItem}>
+            <Link to="/orders" className={styles.menuLink}>
+              <div className={styles.menuLeft}>
+                <span className={styles.menuIcon} aria-hidden="true">
+                  📦
+                </span>
+                <div className={styles.menuText}>
+                  <p className={styles.menuTitle}>My Orders</p>
+                  <p className={styles.menuSubtitle}>Track live shipments & verify delivery receipts</p>
+                </div>
+              </div>
+              <div className={styles.menuRight}>
+                {orderCount > 0 ? <Badge tone="muted">{orderCount}</Badge> : null}
+                <span className={styles.menuChevron} aria-hidden="true">
+                  ›
+                </span>
+              </div>
+            </Link>
+          </li>
+
+          <li className={styles.menuItem}>
+            <Link to="/wishlist" className={styles.menuLink}>
+              <div className={styles.menuLeft}>
+                <span className={styles.menuIcon} aria-hidden="true">
+                  ❤️
+                </span>
+                <div className={styles.menuText}>
+                  <p className={styles.menuTitle}>Saved Wishlist</p>
+                  <p className={styles.menuSubtitle}>Products saved for upcoming purchases</p>
+                </div>
+              </div>
+              <div className={styles.menuRight}>
+                {wishCount > 0 ? <Badge tone="muted">{wishCount}</Badge> : null}
+                <span className={styles.menuChevron} aria-hidden="true">
+                  ›
+                </span>
+              </div>
+            </Link>
+          </li>
+
+          <li className={styles.menuItem}>
+            <Link to="/cart" className={styles.menuLink}>
+              <div className={styles.menuLeft}>
+                <span className={styles.menuIcon} aria-hidden="true">
+                  🛒
+                </span>
+                <div className={styles.menuText}>
+                  <p className={styles.menuTitle}>Shopping Cart</p>
+                  <p className={styles.menuSubtitle}>Review items and proceed to MoMo checkout</p>
+                </div>
+              </div>
+              <div className={styles.menuRight}>
+                <span className={styles.menuChevron} aria-hidden="true">
+                  ›
+                </span>
+              </div>
+            </Link>
+          </li>
+        </ul>
+      </section>
+
+      <section className={styles.menuSection} aria-label="Messages and support">
+        <h2 className={styles.menuSectionHeader}>Communication & Support</h2>
+        <ul className={styles.menuList}>
+          <li className={styles.menuItem}>
+            <Link to="/messages" className={styles.menuLink}>
+              <div className={styles.menuLeft}>
+                <span className={styles.menuIcon} aria-hidden="true">
+                  💬
+                </span>
+                <div className={styles.menuText}>
+                  <p className={styles.menuTitle}>Seller Messages</p>
+                  <p className={styles.menuSubtitle}>Direct chat with Rwandan merchants</p>
+                </div>
+              </div>
+              <div className={styles.menuRight}>
+                {messageCount > 0 ? <Badge tone="muted">{messageCount}</Badge> : null}
+                <span className={styles.menuChevron} aria-hidden="true">
+                  ›
+                </span>
+              </div>
+            </Link>
+          </li>
+
+          <li className={styles.menuItem}>
+            <Link to="/notifications" className={styles.menuLink}>
+              <div className={styles.menuLeft}>
+                <span className={styles.menuIcon} aria-hidden="true">
+                  🔔
+                </span>
+                <div className={styles.menuText}>
+                  <p className={styles.menuTitle}>Notifications & Alerts</p>
+                  <p className={styles.menuSubtitle}>Order updates, delivery tracking, and system alerts</p>
+                </div>
+              </div>
+              <div className={styles.menuRight}>
+                {unread > 0 ? <Badge tone="brand">{unread} new</Badge> : null}
+                <span className={styles.menuChevron} aria-hidden="true">
+                  ›
+                </span>
+              </div>
+            </Link>
+          </li>
+
+          <li className={styles.menuItem}>
+            <Link to="/disputes" className={styles.menuLink}>
+              <div className={styles.menuLeft}>
+                <span className={styles.menuIcon} aria-hidden="true">
+                  ⚖️
+                </span>
+                <div className={styles.menuText}>
+                  <p className={styles.menuTitle}>Resolution Center (Disputes)</p>
+                  <p className={styles.menuSubtitle}>Report delays, damaged parcels, or request refunds</p>
+                </div>
+              </div>
+              <div className={styles.menuRight}>
+                <span className={styles.menuChevron} aria-hidden="true">
+                  ›
+                </span>
+              </div>
+            </Link>
+          </li>
+        </ul>
+      </section>
+
+      <section className={styles.menuSection} aria-label="Account details">
+        <h2 className={styles.menuSectionHeader}>Account Settings</h2>
+        <ul className={styles.menuList}>
+          <li className={styles.menuItem}>
+            <Link to="/checkout" className={styles.menuLink}>
+              <div className={styles.menuLeft}>
+                <span className={styles.menuIcon} aria-hidden="true">
+                  📍
+                </span>
+                <div className={styles.menuText}>
+                  <p className={styles.menuTitle}>Delivery Addresses</p>
+                  <p className={styles.menuSubtitle}>Manage delivery addresses across Rwanda</p>
+                </div>
+              </div>
+              <div className={styles.menuRight}>
+                {savedAddresses.length > 0 ? <Badge tone="muted">{savedAddresses.length}</Badge> : null}
+                <span className={styles.menuChevron} aria-hidden="true">
+                  ›
+                </span>
+              </div>
+            </Link>
+          </li>
+
+          <li className={styles.menuItem}>
+            <Link to="/contact" className={styles.menuLink}>
+              <div className={styles.menuLeft}>
+                <span className={styles.menuIcon} aria-hidden="true">
+                  📞
+                </span>
+                <div className={styles.menuText}>
+                  <p className={styles.menuTitle}>Customer Support</p>
+                  <p className={styles.menuSubtitle}>Contact the NeereMarket support team</p>
+                </div>
+              </div>
+              <div className={styles.menuRight}>
+                <span className={styles.menuChevron} aria-hidden="true">
+                  ›
+                </span>
+              </div>
+            </Link>
+          </li>
+        </ul>
+      </section>
+
+      {/* ── 2-Column Responsive Layout: Recent Orders & Saved Addresses ── */}
+      <div className={styles.columns}>
+        {/* Recent Orders Panel */}
+        <section className={styles.panel} aria-label="Recent purchases">
+          <header className={styles.panelHead}>
+            <h2>
+              <span aria-hidden="true">📦</span> Recent Orders
+            </h2>
+            <Link to="/orders">View all ({orderCount}) →</Link>
+          </header>
+
           {ordersLoading ? (
             <div className={styles.skel}>
-              <Skeleton height={56} />
               <Skeleton height={56} />
               <Skeleton height={56} />
             </div>
@@ -265,24 +407,25 @@ export function AccountPage() {
             <ul className={styles.orderList}>
               {recentOrders.map((order) => (
                 <li key={order.id}>
-                  <Link to={`/orders/${order.id}`} className={styles.orderRow}>
-                    <div>
-                      <strong>{order.orderNumber}</strong>
-                      <p>
+                  <Link to={`/orders/${order.id}`} className={styles.orderRow} title="View order details">
+                    <div className={styles.orderTop}>
+                      <span className={styles.orderNumber}>#{order.orderNumber}</span>
+                      <Badge tone={statusTone(order.status)}>{prettyStatus(order.status)}</Badge>
+                    </div>
+                    <div className={styles.orderMeta}>
+                      <span>
                         {order.createdAt
                           ? new Date(order.createdAt).toLocaleDateString('en-GB', {
                               day: 'numeric',
                               month: 'short',
-                              year: 'numeric',
                             })
                           : 'Recent'}
                         {order.sellerOrders?.length
                           ? ` · ${order.sellerOrders.map((s) => s.sellerName).filter(Boolean).join(', ')}`
                           : null}
-                      </p>
+                      </span>
+                      <span className={styles.amount}>{formatRwf(order.total)}</span>
                     </div>
-                    <Badge tone={statusTone(order.status)}>{prettyStatus(order.status)}</Badge>
-                    <span className={styles.amount}>{formatRwf(order.total)}</span>
                   </Link>
                 </li>
               ))}
@@ -290,11 +433,15 @@ export function AccountPage() {
           )}
         </section>
 
-        <section className={styles.panel}>
-          <div className={styles.panelHead}>
-            <h2>Delivery addresses</h2>
-            <Link to="/checkout">Manage</Link>
-          </div>
+        {/* Saved Addresses Panel */}
+        <section className={styles.panel} aria-label="Saved addresses">
+          <header className={styles.panelHead}>
+            <h2>
+              <span aria-hidden="true">📍</span> Saved Addresses
+            </h2>
+            <Link to="/checkout">Manage →</Link>
+          </header>
+
           {addressesLoading ? (
             <div className={styles.skel}>
               <Skeleton height={72} />
@@ -312,22 +459,34 @@ export function AccountPage() {
             <ul className={styles.addressList}>
               {savedAddresses.map((address) => (
                 <li key={address.id} className={styles.address}>
-                  <div>
-                    <strong>
-                      {address.fullName}
-                      {address.isDefault ? <Badge tone="brand">Default</Badge> : null}
-                    </strong>
-                    <p>
-                      {[address.landmark, address.district, address.province].filter(Boolean).join(', ')}
-                    </p>
-                    <p>{address.phone}</p>
+                  <div className={styles.addressTop}>
+                    <p className={styles.addressName}>{address.fullName}</p>
+                    {address.isDefault ? <Badge tone="brand">Default</Badge> : null}
                   </div>
+                  <p className={styles.addressLines}>
+                    {[address.landmark, address.district, address.province].filter(Boolean).join(', ')}
+                  </p>
+                  <p className={styles.addressPhone}>📞 {address.phone}</p>
                 </li>
               ))}
             </ul>
           )}
         </section>
       </div>
+
+      {/* ── NeereMarket Escrow Buyer Guarantee Card ── */}
+      <section className={styles.escrowCard} aria-label="NeereMarket buyer protection">
+        <div className={styles.escrowIcon} aria-hidden="true">
+          🛡️
+        </div>
+        <div className={styles.escrowText}>
+          <h4>NeereMarket Escrow Protection</h4>
+          <p>
+            Every order is protected by our escrow system. Your payment is held safely and only released
+            to the merchant after you confirm that your parcel arrived in good condition.
+          </p>
+        </div>
+      </section>
     </div>
   );
 }

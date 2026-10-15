@@ -113,7 +113,7 @@ export function AdminPage() {
   return (
     <div className={styles.stack}>
       <Helmet>
-        <title>Admin {section} | NeereMarket</title>
+        <title>{`Admin ${section} | NeereMarket`}</title>
       </Helmet>
       {section === 'overview' ? <OverviewTab /> : null}
       {section === 'users' ? <UsersTab /> : null}

@@ -87,7 +87,7 @@ export function AdminOrderDetailPage() {
   return (
     <div className={styles.stack}>
       <Helmet>
-        <title>Order {order.orderNumber} | NeereMarket admin</title>
+        <title>{`Order ${order.orderNumber} | NeereMarket admin`}</title>
       </Helmet>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', paddingBottom: '0.25rem' }}>

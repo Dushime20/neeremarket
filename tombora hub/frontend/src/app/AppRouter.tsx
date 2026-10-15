@@ -55,7 +55,7 @@ import { SellerOrderDetailPage } from '@/pages/SellerOrderDetailPage';
 
 export function AppRouter() {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
         <Route element={<WorkspaceLayout variant="seller" />}>
           <Route path="seller" element={<SellerDashboardPage />} />

@@ -1,63 +1,246 @@
 .row {
   display: grid;
-  grid-template-columns: 96px 1fr auto;
-  gap: 1rem;
-  padding: 1rem 0;
-  border-bottom: 1px solid var(--color-border);
+  grid-template-columns: 104px 1fr auto;
+  gap: 1.25rem;
+  padding: 1.25rem 0;
+  border-bottom: 1px solid #f1f5f9;
+  align-items: start;
+  transition: opacity 0.2s ease;
 }
 
+.row:last-child {
+  border-bottom: none;
+  padding-bottom: 0.5rem;
+}
+
+.rowOos {
+  opacity: 0.72;
+}
+
+/* Media Thumbnail */
 .media {
-  width: 96px;
-  height: 96px;
+  position: relative;
+  width: 104px;
+  height: 104px;
   border-radius: 10px;
   overflow: hidden;
-  background: #e7eee9;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  display: block;
+  flex-shrink: 0;
 }
 
 .media img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.2s ease;
 }
 
-.body h3 {
-  font-family: var(--font-sans);
-  font-size: var(--text-md);
-  margin: 0 0 0.25rem;
+.media:hover img {
+  transform: scale(1.04);
 }
 
-.store,
-.price {
+.mediaOosTag {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.7);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.25rem;
+  text-align: center;
+}
+
+/* Main Body */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.titleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.titleLink {
+  text-decoration: none;
+  color: inherit;
+}
+
+.title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111827;
+  line-height: 1.4;
   margin: 0;
-  color: var(--color-ink-muted);
-  font-size: var(--text-sm);
+  transition: color 0.15s ease;
 }
 
-.oos {
-  margin: 0.35rem 0 0;
-  color: #b42318;
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+.titleLink:hover .title {
+  color: var(--color-brand);
 }
 
+/* Variant Badge */
+.variantBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border-radius: 6px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #475569;
+  width: fit-content;
+}
+
+/* Stock Status */
+.statusRow {
+  margin-top: 0.1rem;
+}
+
+.stockBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 4px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.stockBadgeIn {
+  color: #15803d;
+}
+
+.stockBadgeIn .dot {
+  background: #22c55e;
+}
+
+.stockBadgeLow {
+  color: #b45309;
+}
+
+.stockBadgeLow .dot {
+  background: #f59e0b;
+}
+
+.stockBadgeOos {
+  color: #dc2626;
+}
+
+.stockBadgeOos .dot {
+  background: #ef4444;
+}
+
+/* Actions Row (Quantity + Buttons) */
 .actions {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-top: 0.6rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.qtyBox {
+  display: flex;
+  align-items: center;
+}
+
+.actionBtns {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: none;
+  border: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0.25rem 0;
+  transition: color 0.15s ease;
+}
+
+.actionBtn:hover {
+  color: #0f172a;
+}
+
+.actionBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.removeBtn:hover {
+  color: #dc2626;
+}
+
+/* Right Pricing Column */
+.pricing {
+  text-align: right;
+  white-space: nowrap;
 }
 
 .lineTotal {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #111827;
   margin: 0;
-  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
 }
 
-@media (max-width: 640px) {
+.unitPrice {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 0.2rem 0 0;
+}
+
+/* Responsive */
+@media (max-width: 680px) {
   .row {
-    grid-template-columns: 72px 1fr;
+    grid-template-columns: 84px 1fr;
+    gap: 0.85rem;
+  }
+
+  .media {
+    width: 84px;
+    height: 84px;
+  }
+
+  .pricing {
+    grid-column: 2;
+    text-align: left;
+    margin-top: -0.2rem;
   }
 
   .lineTotal {
-    grid-column: 2;
+    font-size: 0.95rem;
+  }
+
+  .actions {
+    grid-column: 1 / -1;
+    margin-top: 0.35rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed #f1f5f9;
+    justify-content: space-between;
   }
 }

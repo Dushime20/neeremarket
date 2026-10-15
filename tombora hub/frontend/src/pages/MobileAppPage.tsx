@@ -8,7 +8,7 @@ export function MobileAppPage() {
   return (
     <div className={styles.page}>
       <Helmet>
-        <title>Get the app | {APP_NAME}</title>
+        <title>{`Get the app | ${APP_NAME}`}</title>
       </Helmet>
       <section className={styles.hero}>
         <div className="container">

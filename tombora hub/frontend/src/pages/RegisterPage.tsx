@@ -77,7 +77,7 @@ export function RegisterPage() {
   return (
     <form className={styles.form} onSubmit={onSubmit}>
       <Helmet>
-        <title>{role === 'SELLER' ? 'Join Free as a seller' : 'Join Free'} | {APP_NAME}</title>
+        <title>{`${role === 'SELLER' ? 'Join Free as a seller' : 'Join Free'} | ${APP_NAME}`}</title>
       </Helmet>
       <h1 className="sr-only">Join Free</h1>
       {error ? (
